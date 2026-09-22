@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { exercises, getSkill } from "@/lib/exercises";
 import type {
+  AnswerExample,
   Attempt,
   CompletedSession,
   Exercise,
@@ -376,6 +377,55 @@ function ResponseControl({
   );
 }
 
+function AnswerExamplePanel({
+  examples,
+  fallbackSource,
+}: {
+  examples: AnswerExample[];
+  fallbackSource: Exercise["source"];
+}) {
+  const [activeId, setActiveId] = useState(examples[0]?.id ?? "");
+  const activeExample =
+    examples.find((example) => example.id === activeId) ?? examples[0];
+
+  if (!activeExample) return null;
+
+  const source = activeExample.source ?? fallbackSource;
+
+  return (
+    <section className="answer-example" aria-labelledby="answer-example-title">
+      <div className="answer-example__header">
+        <div>
+          <span className="answer-example__kicker">From structure to speech</span>
+          <h2 id="answer-example-title">Good answer example</h2>
+        </div>
+        <span className="answer-example__duration">Learn the shape, not the script</span>
+      </div>
+
+      {examples.length > 1 ? (
+        <div aria-label="Company answer variant" className="answer-example__tabs">
+          {examples.map((example) => (
+            <button
+              aria-pressed={example.id === activeExample.id}
+              className={example.id === activeExample.id ? "is-active" : undefined}
+              key={example.id}
+              onClick={() => setActiveId(example.id)}
+              type="button"
+            >
+              {example.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <blockquote key={activeExample.id}>{activeExample.answer}</blockquote>
+      <a href={source.url} rel="noreferrer" target="_blank">
+        Source material: {source.title} <span aria-hidden="true">↗</span>
+      </a>
+    </section>
+  );
+}
+
 function SessionScreen({
   mode,
   sessionExercises,
@@ -535,6 +585,14 @@ function SessionScreen({
                 <a href={exercise.source.url} rel="noreferrer" target="_blank">Read source: {exercise.source.title} <span aria-hidden="true">↗</span></a>
               </div>
             </div>
+          ) : null}
+
+          {submitted && exercise.answerExamples ? (
+            <AnswerExamplePanel
+              examples={exercise.answerExamples}
+              fallbackSource={exercise.source}
+              key={exercise.id}
+            />
           ) : null}
 
           <div className="exercise-actions">

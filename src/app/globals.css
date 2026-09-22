@@ -156,6 +156,16 @@ svg { fill: none; height: 1.1em; stroke: currentColor; stroke-linecap: round; st
 .feedback-panel strong { display: block; font-size: 0.9rem; margin-bottom: 0.35rem; }
 .feedback-panel p { color: #4e575c; font-size: 0.8rem; line-height: 1.5; margin: 0; }
 .feedback-panel a { color: inherit; display: inline-flex; font-size: 0.72rem; font-weight: 750; margin-top: 0.35rem; min-height: 2.75rem; padding: 0.75rem 0; }
+.answer-example { background: var(--navy); border-radius: 1rem; color: #f8f9f3; margin-top: 1rem; padding: clamp(1rem, 3vw, 1.5rem); }
+.answer-example__header { align-items: flex-start; display: flex; gap: 1rem; justify-content: space-between; }
+.answer-example__kicker { color: var(--lime); display: block; font-size: 0.62rem; font-weight: 850; letter-spacing: 0.12em; margin-bottom: 0.35rem; text-transform: uppercase; }
+.answer-example h2 { font-size: 1.15rem; letter-spacing: -0.035em; margin: 0; }
+.answer-example__duration { color: #aab1b4; font-size: 0.68rem; line-height: 1.4; text-align: right; }
+.answer-example__tabs { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 1.2rem; }
+.answer-example__tabs button { background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 999px; color: #c4c9cb; cursor: pointer; font-size: 0.72rem; font-weight: 750; min-height: 2.75rem; padding: 0.6rem 0.9rem; }
+.answer-example__tabs button.is-active { background: var(--lime); border-color: var(--lime); color: var(--ink); }
+.answer-example blockquote { animation: feedback-enter 180ms ease-out both; border-left: 2px solid var(--lime); color: #e4e7e2; font-size: clamp(0.86rem, 1.5vw, 0.96rem); line-height: 1.72; margin: 1.2rem 0 0; padding-left: 1rem; }
+.answer-example > a { color: #bfc5c7; display: inline-flex; font-size: 0.7rem; font-weight: 750; margin-top: 0.55rem; min-height: 2.75rem; padding: 0.75rem 0; }
 .exercise-actions { border-top: 1px solid var(--line); margin-top: 2rem; padding-top: 1.3rem; }
 .shortcut-hint { color: #8b9498; font-size: 0.68rem; }
 .primary-button, .secondary-button { align-items: center; border-radius: 999px; cursor: pointer; display: inline-flex; font-size: 0.8rem; font-weight: 800; gap: 0.7rem; justify-content: center; min-height: 3rem; padding: 0.7rem 1.2rem; }
@@ -235,6 +245,10 @@ svg { fill: none; height: 1.1em; stroke: currentColor; stroke-linecap: round; st
   .ordering-item { min-height: 4.5rem; }
   .feedback-panel { grid-template-columns: 2.25rem 1fr; padding: 0.9rem; }
   .feedback-icon { height: 2.25rem; width: 2.25rem; }
+  .answer-example__header { flex-direction: column; gap: 0.4rem; }
+  .answer-example__duration { text-align: left; }
+  .answer-example__tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .answer-example__tabs button { padding-inline: 0.5rem; }
   .exercise-actions { align-items: stretch; flex-direction: column; }
   .shortcut-hint { display: none; }
   .primary-button { width: 100%; }
@@ -260,6 +274,7 @@ svg { fill: none; height: 1.1em; stroke: currentColor; stroke-linecap: round; st
   .anchor-sequence, .anchor-bank { align-items: stretch; flex-direction: column; }
   .anchor-sequence button, .anchor-bank button { border-radius: 0.75rem; justify-content: flex-start; width: 100%; }
   .feedback-panel { grid-template-columns: 1fr; }
+  .answer-example__tabs { grid-template-columns: 1fr; }
   .results-card { border-radius: 1.15rem; padding: 1.25rem; }
 }
 

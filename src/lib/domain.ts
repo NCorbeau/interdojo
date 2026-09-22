@@ -19,6 +19,16 @@ export type AnswerOption = {
   label: string;
 };
 
+export type AnswerExample = {
+  id: string;
+  label: string;
+  answer: string;
+  source?: {
+    title: string;
+    url: string;
+  };
+};
+
 type ExerciseBase = {
   id: string;
   skillId: string;
@@ -28,6 +38,7 @@ type ExerciseBase = {
   prompt: string;
   instruction: string;
   explanation: string;
+  answerExamples?: AnswerExample[];
   source: {
     title: string;
     url: string;

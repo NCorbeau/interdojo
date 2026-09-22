@@ -1,4 +1,4 @@
-import type { Exercise, Skill } from "./domain";
+import type { AnswerExample, Exercise, Skill } from "./domain";
 
 const distributedSystemsSource = {
   title: "Distributed Systems & Async Work — Study Guide",
@@ -24,6 +24,69 @@ const storyBankSource = {
   title: "Kalepa — Staff Story Bank",
   url: "https://app.notion.com/p/3dde60f718a981cea77feae7ee8acd4d",
 };
+
+const companyAnswerSources = {
+  ashby: {
+    title: "Why Ashby — Answer Card",
+    url: "https://app.notion.com/p/3e0e60f718a9818c8daadc6396050d48",
+  },
+  attio: {
+    title: "Why Attio — Answer Card",
+    url: "https://app.notion.com/p/3e0e60f718a981d1956ef09f5649ccc2",
+  },
+  linear: {
+    title: "Why Linear — Answer Card",
+    url: "https://app.notion.com/p/3e0e60f718a98183b920c4fec6073866",
+  },
+};
+
+const companyAnswerExamples: AnswerExample[] = [
+  {
+    id: "ashby",
+    label: "#1 Ashby",
+    answer:
+      "Ashby stands out to me because the combination is unusually coherent: strong product engineering, a high bar for engineers owning problems end to end, and one of the clearest public examples I’ve seen of AI being integrated into the engineering operating model rather than added on top. That maps well to how I’ve worked—complex cross-stack workflows at Kalepa and architectural foundations at Appfire that enabled later work. After Kalepa, I also know I want AI to be part of normal engineering practice, so Ashby is particularly interesting to me now.",
+    source: companyAnswerSources.ashby,
+  },
+  {
+    id: "attio",
+    label: "#2 Attio",
+    answer:
+      "Attio is interesting to me because the product itself is built around a flexible data model, and the Staff role appears to combine deep product work with architectural judgment. That maps strongly to work I’ve done around typed capabilities, internationalization and resource-planning foundations—problems where the hard part was getting the domain model right across layers, not just implementing a screen. I also like roles where Staff impact still includes shipping product directly, which is the balance I’m looking for next.",
+    source: companyAnswerSources.attio,
+  },
+  {
+    id: "linear",
+    label: "#3 Linear",
+    answer:
+      "Linear is compelling because product quality seems to be treated as an engineering concern, not just a design concern. A lot of my work has been exactly at that boundary—taking complex domain constraints and turning them into product behavior that feels coherent, including the resource-planning work at Appfire and cross-stack workflows at Kalepa. I also like that the role appears to value engineers who follow the problem rather than staying inside one layer, which is how I want to operate at Staff scope.",
+    source: companyAnswerSources.linear,
+  },
+];
+
+const extendedCompanyAnswerExamples: AnswerExample[] = [
+  {
+    id: "ashby",
+    label: "#1 Ashby",
+    answer:
+      "After Kalepa ended, I made the search deliberate: I defined the criteria that matter to me, researched a broad set of companies and kept a living evidence-based ranking. Ashby rose to the top of my current shortlist because the product-engineering scope, engineering bar and documented AI operating model align unusually well. The company expects engineers to own problems end to end, and its public material describes AI as part of normal engineering work rather than a demo layer. That maps to my cross-stack workflow ownership at Kalepa and the architectural foundations I built at Appfire to make later work safer and faster. Kalepa also clarified how much I value genuinely AI-native engineering and strong async communication, so the combination feels especially relevant now.",
+    source: companyAnswerSources.ashby,
+  },
+  {
+    id: "attio",
+    label: "#2 Attio",
+    answer:
+      "After Kalepa ended, I made the search deliberate rather than applying broadly, and Attio remained near the top of the shortlist because its flexible data model and Staff Product Engineer scope map unusually well to my experience. The interesting part for me is that getting the domain model right is itself a product problem. That connects directly to my work on typed capabilities, internationalization across storage, backend and frontend, and the resource-planning foundations at Appfire. I’ve also mentored another engineer into meaningful ownership. I’m looking for Staff-level leverage while staying close to the product and implementation, and Attio appears to offer exactly that balance.",
+    source: companyAnswerSources.attio,
+  },
+  {
+    id: "linear",
+    label: "#3 Linear",
+    answer:
+      "After Kalepa ended, I made the search deliberate and kept a living evidence-based ranking. Linear stayed near the top because its product and interaction bar, engineering ownership and Staff product scope fit my background unusually well. What stands out is that product quality appears to be treated as an engineering concern and that engineers are expected to follow a problem across boundaries. At Appfire I reshaped the architecture behind a resource-planning grid so it preserved user context and enabled grouping and filtering; at Kalepa I carried complex workflows across UI, APIs and data. I want to keep using my frontend architecture depth as a force multiplier without letting it define the boundary of my scope, which is why Linear is compelling now.",
+    source: companyAnswerSources.linear,
+  },
+];
 
 export const skills: Skill[] = [
   { id: "distributed-systems", name: "Distributed systems", track: "engineering" },
@@ -174,6 +237,14 @@ export const exercises: Exercise[] = [
     correctOrder: ["identity", "history", "proof", "direction"],
     explanation:
       "A strong introduction gives the listener an identity, relevant progression, concrete differentiation and a clear direction. Detailed chronology and tool inventories dilute the signal.",
+    answerExamples: [
+      {
+        id: "canonical",
+        label: "Canonical",
+        answer:
+          "I’m a product-oriented full-stack engineer with about eleven years of experience. I started in .NET and full-stack development, then spent several years going deep into frontend architecture. Across those roles, the consistent pattern has been carrying complex product workflows end to end—through domain modeling, interfaces, APIs, data, verification and rollout. At Appfire, I helped reshape the foundations of a resource-planning product, owned shared frontend foundations and mentored another engineer into substantial ownership. More recently at Kalepa, I worked across React and TypeScript, Python services, APIs and persistence in an AI-native environment. I’m now looking for a long-term role where I can stay hands-on while providing architectural direction, helping strong engineers become more effective and working closely with excellent Product and Design partners.",
+      },
+    ],
     source: answerBankSource,
   },
   {
@@ -194,6 +265,7 @@ export const exercises: Exercise[] = [
     correctOrder: ["them", "me", "timing"],
     explanation:
       "The canonical structure is them → me → timing. Specific evidence makes the answer credible; the internal ranking is supporting context, not the answer itself.",
+    answerExamples: companyAnswerExamples,
     source: answerBankSource,
   },
   {
@@ -252,6 +324,15 @@ export const exercises: Exercise[] = [
     correctOrder: ["context", "ownership", "correction", "prevention"],
     explanation:
       "The useful arc is context → personal ownership → correction → prevention. It should not hide accountability inside a team story or claim another engineer’s diagnosis as your own.",
+    answerExamples: [
+      {
+        id: "exposure-summary",
+        label: "Exposure Summary",
+        answer:
+          "One failure I can own clearly came from Exposure Summary, a broad workflow I delivered early at Kalepa under intense time pressure. I focused on functional correctness and detailed feedback, but I did not reserve enough attention for backend performance analysis or testing with large submissions. The backend I authored was later found to contain serial service calls and a quadratic in-memory lookup. I own the original implementation and that missing analysis; Rafał diagnosed the production behavior and implemented the remediation, and I don’t claim his work as mine. The lesson was to make scale, failure modes and operational consequences explicit parts of done. In later backend work such as Forms Trace, email-chain replies and the rule-copy API, I applied that lesson through more deliberate design and risk review.",
+        source: storyBankSource,
+      },
+    ],
     source: answerBankSource,
   },
   {
@@ -273,6 +354,14 @@ export const exercises: Exercise[] = [
     correctOrder: ["delivery", "architecture", "boundaries", "leverage"],
     explanation:
       "The Staff case is the sustained combination of delivery, architecture, ownership across layers and leverage—not a title or an exaggerated claim that every project had organization-wide scope.",
+    answerExamples: [
+      {
+        id: "canonical",
+        label: "Canonical",
+        answer:
+          "I think my Staff case rests on several kinds of leverage rather than on title or code volume. I’ve stayed hands-on while giving architectural direction—for example, reshaping the state and domain foundations of Appfire’s resource-planning product so later capabilities became practical. At Kalepa, I carried ambiguous product problems across React, Python services, APIs, persistence, migration and rollout rather than stopping at one layer. I’ve also built reusable tooling and mentored another engineer into substantial ownership. I don’t claim that every project had company-wide scope. My case is the sustained combination of delivery, architectural direction, cross-boundary ownership and making other engineers more effective.",
+      },
+    ],
     source: answerBankSource,
   },
   {
@@ -531,6 +620,7 @@ export const exercises: Exercise[] = [
     correctOrder: ["ranking", "them", "me", "timing"],
     explanation:
       "The extended form adds a short structured-search context before the core them → me → timing answer. The ranking establishes genuine interest but should not displace the company and fit.",
+    answerExamples: extendedCompanyAnswerExamples,
     source: answerBankSource,
   },
   {
@@ -674,6 +764,14 @@ export const exercises: Exercise[] = [
     correctOrder: ["need", "context", "foundation", "outcome"],
     explanation:
       "The story’s decision was how to stage a clearly necessary rewrite: learn the domain, establish the new foundation, then replace the UI and build previously impractical capabilities. Context and coaching should not be misrepresented as co-ownership.",
+    answerExamples: [
+      {
+        id: "appfire-grid",
+        label: "Appfire grid",
+        answer:
+          "At Appfire, the Resources grid had reached the point where a rewrite was clearly necessary. The old implementation broadly reloaded after operations, blinked and disrupted the user’s context, and it could not credibly support grouping and filtering. The challenge was making an intimidating rewrite executable. I first learned the domain from Robert, the backend lead, and used architectural coaching from Łukasz while retaining ownership of the frontend architecture. I then split the work into stages: build the domain and application layers with cached fetching, then replace the UI on that foundation. The new grid supported selective updates from the start, preserved working context and felt much faster. More importantly, the foundation made grouping and filtering practical. The Staff-level part was sequencing a necessary rewrite so it improved today’s interaction while enabling the next product capabilities.",
+      },
+    ],
     source: storyBankSource,
   },
 ];
