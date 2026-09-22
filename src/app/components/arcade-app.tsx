@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { companyWorlds, getCompanyWorld } from "@/lib/company-worlds";
 import { allExercises, allSkills } from "@/lib/exercise-bank";
+import { deriveLearningState, type SkillLearningState } from "@/lib/learning-state";
 import type {
   AnswerExample,
   AnchorExercise,
@@ -12,6 +13,7 @@ import type {
   Exercise,
   OrderingExercise,
   PhaseOneSessionMode,
+  SelfAssessment,
   SessionMode,
 } from "@/lib/domain";
 import {
@@ -151,13 +153,44 @@ function HomeScreen({
   const latest = history[0];
   const latestSummary = latest ? summarizeSession(latest) : null;
   const selectedCompany = getCompanyWorld(selectedCompanyId);
+  const learning = deriveLearningState(history, allSkills);
+  const baselineFocus = ["distributed-systems", "system-design", "node-runtime"];
+  const rankedPractice = allSkills
+    .map((skill) => ({ skill, state: learning.get(skill.id) }))
+    .filter((item): item is { skill: (typeof allSkills)[number]; state: SkillLearningState } =>
+      item.state !== undefined,
+    )
+    .sort((left, right) =>
+      right.state.priority - left.state.priority ||
+      (baselineFocus.indexOf(left.skill.id) < 0 ? 99 : baselineFocus.indexOf(left.skill.id)) -
+        (baselineFocus.indexOf(right.skill.id) < 0 ? 99 : baselineFocus.indexOf(right.skill.id)) ||
+      left.skill.id.localeCompare(right.skill.id),
+    );
+  const topEngineering = rankedPractice.find((item) => item.skill.track === "engineering");
+  const topInterview = rankedPractice.find((item) => item.skill.track === "interview");
+  const balancedPractice = [topEngineering, topInterview].filter(
+    (item): item is NonNullable<typeof item> => Boolean(item),
+  );
+  const third = rankedPractice.find((item) => !balancedPractice.includes(item));
+  if (third) balancedPractice.push(third);
+  balancedPractice.sort((left, right) => right.state.priority - left.state.priority);
+  const practiceNext = history.length > 0
+    ? balancedPractice.map(({ skill, state }) => ({
+        name: skill.name,
+        reason: state.reason,
+      }))
+    : [
+        { name: "Distributed systems", reason: "Current depth gap" },
+        { name: "System design", reason: "Practice the live structure" },
+        { name: "Node.js runtime", reason: "Keep the backend reflex" },
+      ];
 
   return (
     <main className="home-shell">
       <section className="home-main">
         <div className="eyebrow-row">
           <span className="status-dot" />
-          <span>Phase 2 · Company Worlds</span>
+          <span>Phase 3 · Adaptive Brain</span>
         </div>
 
         <div className="hero-copy">
@@ -275,34 +308,36 @@ function HomeScreen({
       <aside className="readiness-panel">
         <div className="readiness-panel__header">
           <div>
-            <p className="overline">Readiness signal</p>
-            <h2>Next focus</h2>
+            <p className="overline">From your practice</p>
+            <h2>Practice next</h2>
           </div>
-          <span className="signal-badge">Live</span>
+          <span className="signal-badge">Adaptive</span>
         </div>
 
         <div className="focus-score">
-          <div className="score-orbit" aria-label="Distributed systems confidence: 35 percent">
-            <span>35</span>
-            <small>%</small>
-          </div>
+          <div className="practice-orbit" aria-hidden="true">↗</div>
           <div>
-            <h3>Distributed systems</h3>
-            <p>Highest-priority depth gap</p>
+            <h3>{practiceNext[0].name}</h3>
+            <p>{practiceNext[0].reason}</p>
           </div>
         </div>
 
         <div className="focus-list">
-          <div><span>01</span><p>Queues, retries & idempotency</p></div>
-          <div><span>02</span><p>Consistency & failure recovery</p></div>
-          <div><span>03</span><p>Live system-design delivery</p></div>
+          {practiceNext.slice(1).map((item, index) => (
+            <div key={item.name}>
+              <span>0{index + 2}</span>
+              <p><strong>{item.name}</strong><small>{item.reason}</small></p>
+            </div>
+          ))}
         </div>
 
         <div className="last-session">
           <span className="last-session__label">Last run</span>
           {latestSummary ? (
             <>
-              <strong>{latestSummary.percentage}% accuracy</strong>
+              <strong>{latestSummary.gradedTotal > 0
+                ? `${latestSummary.percentage}% graded accuracy`
+                : `${latestSummary.selfCheckCount} self-checks rated`}</strong>
               <p>{getSessionLabel(latest.mode, latest.companyId)} · {latest.attempts.length} drills saved</p>
             </>
           ) : (
@@ -322,12 +357,69 @@ function ResponseControl({
   response,
   onChange,
   submitted,
+  modelRevealed,
+  onRevealModel,
+  onRateSelfCheck,
 }: {
   exercise: Exercise;
   response: string[];
   onChange: (response: string[]) => void;
   submitted: boolean;
+  modelRevealed: boolean;
+  onRevealModel: () => void;
+  onRateSelfCheck: (assessment: SelfAssessment) => void;
 }) {
+  const modelPointsRef = useRef<HTMLDivElement>(null);
+  const savedStatusRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (exercise.type === "self-check" && submitted) {
+      savedStatusRef.current?.focus({ preventScroll: true });
+    } else if (exercise.type === "self-check" && modelRevealed) {
+      modelPointsRef.current?.focus({ preventScroll: true });
+    }
+  }, [exercise.id, exercise.type, modelRevealed, submitted]);
+
+  if (exercise.type === "self-check") {
+    return (
+      <section className="self-check" aria-labelledby={`self-check-title-${exercise.id}`}>
+        <div className="self-check__prompt">
+          <span aria-hidden="true" className="self-check__step">01</span>
+          <div>
+            <h2 id={`self-check-title-${exercise.id}`}>Say it first</h2>
+            <p>Pause and explain the idea in your own words, aloud or silently. Keep the model points hidden until you are ready.</p>
+          </div>
+        </div>
+        {modelRevealed ? (
+          <div aria-live="polite" className="self-check__model" ref={modelPointsRef} tabIndex={-1}>
+            <p className="self-check__model-label">Model points</p>
+            <ul>{exercise.modelPoints.map((point) => <li key={point}>{point}</li>)}</ul>
+          </div>
+        ) : (
+          <button className="self-check__reveal" onClick={onRevealModel} type="button">
+            Reveal model points <span aria-hidden="true">↓</span>
+          </button>
+        )}
+        {modelRevealed && !submitted ? (
+          <div className="self-check__ratings" aria-label="Rate your explanation">
+            <p>How did it go?</p>
+            <div>
+              <button className="self-check__rating self-check__rating--got-it" onClick={() => onRateSelfCheck("got-it")} type="button">
+                Got it
+              </button>
+              <button className="self-check__rating self-check__rating--needs-work" onClick={() => onRateSelfCheck("needs-work")} type="button">
+                Needs work
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {submitted ? (
+          <p className="self-check__saved" ref={savedStatusRef} role="status" tabIndex={-1}>Self-rating saved. This is your reflection, not an objective score.</p>
+        ) : null}
+      </section>
+    );
+  }
+
   if (exercise.type === "choice" || exercise.type === "multi-select") {
     const multi = exercise.type === "multi-select";
     return (
@@ -589,6 +681,7 @@ function SessionScreen({
   const [response, setResponse] = useState<string[]>([]);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [modelRevealed, setModelRevealed] = useState(false);
   const [startedAt, setStartedAt] = useState(initialStartedAt);
   const questionHeadingRef = useRef<HTMLHeadingElement>(null);
   const exercise = sessionExercises[index];
@@ -601,10 +694,24 @@ function SessionScreen({
       ? exercise.items.map((item) => item.id)
       : response;
 
+  const isSelfCheck = exercise.type === "self-check";
+
   function submit() {
+    if (isSelfCheck) {
+      setModelRevealed(true);
+      return;
+    }
     if (effectiveResponse.length === 0) return;
     const attempt = makeAttempt(exercise, effectiveResponse, Date.now() - startedAt);
     setAttempts((current) => [...current, attempt]);
+    setSubmitted(true);
+  }
+
+  function rateSelfCheck(assessment: SelfAssessment) {
+    if (!isSelfCheck || !modelRevealed || submitted) return;
+    const attempt = makeAttempt(exercise, [assessment], Date.now() - startedAt, assessment);
+    setAttempts((current) => [...current, attempt]);
+    setResponse([assessment]);
     setSubmitted(true);
   }
 
@@ -616,6 +723,7 @@ function SessionScreen({
     setIndex((current) => current + 1);
     setResponse([]);
     setSubmitted(false);
+    setModelRevealed(false);
     setStartedAt(Date.now());
     window.scrollTo(0, 0);
   }
@@ -662,6 +770,7 @@ function SessionScreen({
       }
 
       if (event.key === "Enter") {
+        if (isSelfCheck) return;
         if (!submitted && effectiveResponse.length === 0) return;
         event.preventDefault();
         if (submitted) next();
@@ -673,8 +782,9 @@ function SessionScreen({
     return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
-  const shortcutHint =
-    exercise.type === "choice" || exercise.type === "multi-select"
+  const shortcutHint = isSelfCheck
+    ? "Think it through · Reveal when ready · Rate yourself"
+    : exercise.type === "choice" || exercise.type === "multi-select"
       ? `Keys 1–${exercise.options.length} select · Enter checks`
       : exercise.type === "ordering"
         ? "Arrow controls reorder · Enter checks"
@@ -706,6 +816,7 @@ function SessionScreen({
             </div>
             <span className="interaction-label">{exercise.type.replaceAll("-", " ")}</span>
           </div>
+          {exercise.selectionReason ? <p className="selection-reason">Practice next: {exercise.selectionReason}</p> : null}
 
           <div className="question-copy">
             <h1 ref={questionHeadingRef} tabIndex={-1}>{exercise.prompt}</h1>
@@ -717,24 +828,29 @@ function SessionScreen({
             onChange={setResponse}
             response={response}
             submitted={submitted}
+            modelRevealed={modelRevealed}
+            onRevealModel={submit}
+            onRateSelfCheck={rateSelfCheck}
           />
 
           {submitted && currentAttempt ? (
             <div
               aria-live="polite"
-              className={`feedback-panel ${currentAttempt.correct ? "is-correct" : "is-review"}`}
+              className={`feedback-panel ${currentAttempt.correct === true ? "is-correct" : currentAttempt.correct === false ? "is-review" : "is-self-check"}`}
               role="status"
             >
-              <div className="feedback-icon"><Icon name={currentAttempt.correct ? "check" : "arrow"} /></div>
+              <div className="feedback-icon"><Icon name={currentAttempt.correct === true || currentAttempt.selfAssessment === "got-it" ? "check" : "arrow"} /></div>
               <div>
-                <strong>{currentAttempt.correct ? "Correct — that model holds." : "Not quite — review this one."}</strong>
+                <strong>{currentAttempt.correct === null
+                  ? currentAttempt.selfAssessment === "got-it" ? "You felt ready to explain it." : "You marked this for more practice."
+                  : currentAttempt.correct ? "Correct — that model holds." : "Not quite — review this one."}</strong>
                 <p>{exercise.explanation}</p>
                 <a href={exercise.source.url} rel="noreferrer" target="_blank">Read source: {exercise.source.title} <span aria-hidden="true">↗</span></a>
               </div>
             </div>
           ) : null}
 
-          {submitted &&
+          {submitted && currentAttempt?.correct !== null &&
           currentAttempt &&
           !currentAttempt.correct &&
           (exercise.type === "ordering" || exercise.type === "anchor-reconstruction") ? (
@@ -756,6 +872,8 @@ function SessionScreen({
                 {index === sessionExercises.length - 1 ? "See results" : "Next drill"}
                 <Icon name="arrow" />
               </button>
+            ) : isSelfCheck ? (
+              null
             ) : (
               <button className="primary-button" disabled={effectiveResponse.length === 0} onClick={submit} type="button">
                 Check answer <Icon name="arrow" />
@@ -788,12 +906,16 @@ function ResultsScreen({
       <div className="results-card">
         <p className="overline">{sessionLabel} · Complete</p>
         <div className="results-hero">
-          <div aria-label={`${summary.percentage} percent accuracy`} className="result-score">
-            <span>{summary.percentage}</span><small>%</small>
+          <div aria-label={summary.gradedTotal
+            ? `${summary.percentage} percent accuracy across ${summary.gradedTotal} graded drills`
+            : `No objectively graded drills; ${summary.selfCheckCount} self-checks rated`} className="result-score">
+            <span>{summary.gradedTotal ? summary.percentage : "—"}</span>{summary.gradedTotal ? <small>%</small> : null}
           </div>
           <div>
-            <h1>{summary.percentage >= 80 ? "Sharp work." : "Useful signal."}</h1>
-            <p>{summary.score} of {summary.total} mental models held under pressure.</p>
+            <h1>{summary.gradedTotal === 0 ? "Reflection recorded." : summary.percentage >= 80 ? "Sharp work." : "Useful signal."}</h1>
+            <p>{summary.gradedTotal
+              ? `${summary.score} of ${summary.gradedTotal} objectively graded drills correct${summary.selfCheckCount ? ` · ${summary.selfCheckCount} self-check${summary.selfCheckCount === 1 ? "" : "s"} rated` : ""}.`
+              : `${summary.selfCheckCount} self-check${summary.selfCheckCount === 1 ? "" : "s"} rated. This is self-reported, not an objective score.`}</p>
           </div>
         </div>
 
@@ -812,8 +934,8 @@ function ResultsScreen({
           <strong>What happens now</strong>
           <p>
             {isCompanySession
-              ? `Your ${sessionLabel} attempts were saved. Rapid Fire can bring recent misses back into the next five-drill run.`
-              : "Your attempts were saved. Phase 1 reports the signal; adaptive scheduling arrives in Phase 3."}
+              ? `Your ${sessionLabel} attempts were saved. The next world session can respond to what needs practice; Rapid Fire still brings back recent graded misses.`
+              : "Your attempts were saved. The next Daily Sprint will use this evidence to choose a useful mix."}
           </p>
         </div>
 
@@ -886,9 +1008,9 @@ export function ArcadeApp() {
     const exercises = isCompanyMode && companyId
       ? buildSessionExercises(
           { mode: nextMode, companyId },
-          nextMode === "rapid-fire" ? { history } : {},
+          { history },
         )
-      : buildSessionExercises(nextMode);
+      : buildSessionExercises(nextMode, { history });
 
     setMode(nextMode);
     setActiveCompanyId(companyId);

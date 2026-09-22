@@ -60,7 +60,13 @@ export type ExerciseType =
   | "choice"
   | "multi-select"
   | "ordering"
-  | "anchor-reconstruction";
+  | "anchor-reconstruction"
+  | "self-check";
+
+// A ceiling on the evidence this interaction can produce, not a mastery score.
+export type EvidenceLevel = "recognize" | "recall" | "apply" | "explain";
+export type Difficulty = 1 | 2 | 3;
+export type SelfAssessment = "got-it" | "needs-work";
 
 export type Skill = {
   id: string;
@@ -86,10 +92,13 @@ type ExerciseBase = {
   skillId: string;
   track: Track;
   type: ExerciseType;
+  evidenceLevel: EvidenceLevel;
+  difficulty?: Difficulty;
   eyebrow: string;
   prompt: string;
   instruction: string;
   explanation: string;
+  selectionReason?: string;
   tags?: ExerciseTag[];
   companyId?: CompanyId;
   answerExamples?: AnswerExample[];
@@ -120,11 +129,18 @@ export type AnchorExercise = ExerciseBase & {
   correctOrder: string[];
 };
 
+export type SelfCheckExercise = ExerciseBase & {
+  type: "self-check";
+  evidenceLevel: "recall" | "explain";
+  modelPoints: string[];
+};
+
 export type Exercise =
   | ChoiceExercise
   | MultiSelectExercise
   | OrderingExercise
-  | AnchorExercise;
+  | AnchorExercise
+  | SelfCheckExercise;
 
 export type Attempt = {
   exerciseId: string;
@@ -132,7 +148,11 @@ export type Attempt = {
   track: Track;
   type: ExerciseType;
   response: string[];
-  correct: boolean;
+  // Null means there was no objective grading; selfAssessment records the learner's view.
+  correct: boolean | null;
+  evidenceLevel?: EvidenceLevel; // Absent on legacy attempts.
+  difficulty?: Difficulty; // Absent on legacy attempts.
+  selfAssessment?: SelfAssessment;
   durationMs: number;
   completedAt: string;
 };
@@ -149,6 +169,8 @@ export type CompletedSession = {
 export type SessionSummary = {
   score: number;
   total: number;
+  gradedTotal: number;
+  selfCheckCount: number;
   percentage: number;
   strongSkillIds: string[];
   reviewSkillIds: string[];

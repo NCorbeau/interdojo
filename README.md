@@ -1,12 +1,17 @@
 # Interdojo
 
-Fast, source-grounded drills for technical and interview readiness. The Phase 1 build includes:
+Fast, source-grounded drills for technical and interview readiness. The current build includes:
 
-- Daily Sprint, Engineering, and Interview modes;
-- choice, multi-select, ordering, and anchor-reconstruction interactions;
+- adaptive Daily Sprint, Engineering, Interview, and three Company Worlds;
+- choice, multi-select, ordering, anchor-reconstruction, and say-first self-check interactions;
 - immediate feedback linked to the canonical Notion source;
+- honest Recognize/Recall/Apply/Explain evidence and compact Practice next guidance;
 - responsive layouts for laptop, tablet, and phone;
-- local attempt history with optional cross-device sync through Cloudflare D1.
+- local attempt history with cross-device sync through Cloudflare D1 in production.
+
+The [learning evidence contract](docs/phase3-learning-model.md) explains why self-ratings
+are not counted as objective correctness. Notion remains the source of truth for
+preparation content and readiness priorities.
 
 ## Local development
 
@@ -24,6 +29,8 @@ Open `http://localhost:3000`.
 ```bash
 pnpm typecheck
 pnpm lint
+pnpm verify:phase2
+pnpm verify:phase3
 pnpm build
 pnpm build:vinext
 ```

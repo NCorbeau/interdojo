@@ -12,6 +12,7 @@ export const linearFocusExercises: Exercise[] = [
     skillId: "frontend-architecture",
     track: "engineering",
     type: "multi-select",
+    evidenceLevel: "recognize",
     eyebrow: "State architecture",
     prompt:
       "You are designing an editable, filterable resource grid. Which decisions establish a sound state architecture?",
@@ -34,6 +35,7 @@ export const linearFocusExercises: Exercise[] = [
     skillId: "distributed-systems",
     track: "engineering",
     type: "ordering",
+    evidenceLevel: "apply",
     eyebrow: "Realtime reconciliation",
     prompt:
       "A collaborative grid loads a snapshot, receives events, and can reconnect after missing messages. Order the safest update flow.",
@@ -56,6 +58,7 @@ export const linearFocusExercises: Exercise[] = [
     skillId: "frontend-architecture",
     track: "engineering",
     type: "choice",
+    evidenceLevel: "recognize",
     eyebrow: "Performance diagnosis",
     prompt:
       "Typing into one grid cell makes hundreds of rows rerender and input feels slow. What is the strongest first move?",
@@ -77,6 +80,7 @@ export const linearFocusExercises: Exercise[] = [
     skillId: "react-typescript",
     track: "engineering",
     type: "multi-select",
+    evidenceLevel: "recognize",
     eyebrow: "Interaction quality",
     prompt:
       "For an optimistic rename in a collaborative product, which pieces are required for a trustworthy interaction?",
@@ -99,6 +103,7 @@ export const linearFocusExercises: Exercise[] = [
     skillId: "system-design",
     track: "engineering",
     type: "choice",
+    evidenceLevel: "recognize",
     eyebrow: "Product architecture",
     prompt:
       "A team wants to split a product screen into modules. Which is the strongest boundary signal?",
@@ -120,6 +125,7 @@ export const linearFocusExercises: Exercise[] = [
     skillId: "react-typescript",
     track: "engineering",
     type: "multi-select",
+    evidenceLevel: "recognize",
     eyebrow: "Browser responsiveness",
     prompt:
       "A rich screen is slow to interact with. Which measurements help distinguish browser and application causes before changing code?",

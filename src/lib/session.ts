@@ -1,8 +1,10 @@
 import { getCompanyWorld } from "./company-worlds";
 import {
+  allSkills,
+  coreExercises,
   getCompanyEligibleExercises,
-  phaseOneExercises,
 } from "./exercise-bank";
+import { deriveLearningState, type SkillLearningState } from "./learning-state";
 import type {
   Attempt,
   CompanyId,
@@ -14,6 +16,7 @@ import type {
   SessionMode,
   SessionRequest,
   SessionSummary,
+  SelfAssessment,
   Track,
 } from "./domain";
 
@@ -24,6 +27,7 @@ export type BuildSessionOptions = {
   companyId?: CompanyId;
   history?: readonly CompletedSession[];
   sessionConfig?: CompanyWorldSessionConfig;
+  now?: number;
 };
 
 function randomIndex(length: number, rng: RandomSource): number {
@@ -86,29 +90,44 @@ function randomizePresentation(
     return { ...exercise, items: shuffled(exercise.items, rng) };
   }
 
-  return { ...exercise, anchors: shuffled(exercise.anchors, rng) };
+  if (exercise.type === "anchor-reconstruction") {
+    return { ...exercise, anchors: shuffled(exercise.anchors, rng) };
+  }
+
+  return exercise;
 }
 
 function buildPhaseOneSession(
   mode: PhaseOneSessionMode,
   rng: RandomSource,
+  options: BuildSessionOptions,
 ): Exercise[] {
   if (mode === "daily") {
-    const engineering = shuffled(
-      phaseOneExercises.filter((exercise) => exercise.track === "engineering"),
+    const history = options.history ?? [];
+    const learning = deriveLearningState(history, allSkills, options.now);
+    const recentIds = new Set(history[0]?.attempts.map((attempt) => attempt.exerciseId) ?? []);
+    const engineering = adaptiveSample(
+      coreExercises.filter((exercise) => exercise.track === "engineering"),
+      4,
+      learning,
+      recentIds,
       rng,
-    ).slice(0, 4);
-    const interview = shuffled(
-      phaseOneExercises.filter((exercise) => exercise.track === "interview"),
+    );
+    const interview = adaptiveSample(
+      coreExercises.filter((exercise) => exercise.track === "interview"),
+      3,
+      learning,
+      recentIds,
       rng,
-    ).slice(0, 3);
+      Math.max(0, 2 - engineering.filter((exercise) => exercise.type === "self-check").length),
+    );
     return shuffled([...engineering, ...interview], rng).map((exercise) =>
       randomizePresentation(exercise, rng),
     );
   }
 
   return shuffled(
-    phaseOneExercises.filter((exercise) => exercise.track === mode),
+    coreExercises.filter((exercise) => exercise.track === mode),
     rng,
   )
     .slice(0, 7)
@@ -157,17 +176,98 @@ function weightedSample(
   count: number,
   getWeight: (exercise: Exercise) => number,
   rng: RandomSource,
+  maxSelfChecks = 2,
 ): Exercise[] {
   const remaining = [...exercises];
   const selected: Exercise[] = [];
 
   while (selected.length < count && remaining.length > 0) {
-    const exercise = weightedPick(remaining, getWeight, rng);
+    const available = remaining.filter(
+      (exercise) => exercise.type !== "self-check" ||
+        selected.filter((item) => item.type === "self-check").length < maxSelfChecks,
+    );
+    const exercise = weightedPick(available.length > 0 ? available : remaining, getWeight, rng);
     selected.push(exercise);
     remaining.splice(
       remaining.findIndex((candidate) => candidate.id === exercise.id),
       1,
     );
+  }
+
+  return selected;
+}
+
+const evidenceRank = { recognize: 0, recall: 1, apply: 2, explain: 3 } as const;
+
+function adaptiveWeight(
+  exercise: Exercise,
+  state: SkillLearningState | undefined,
+  recentlySeen: boolean,
+): number {
+  if (!state) return 1;
+  const distance = evidenceRank[exercise.evidenceLevel] - evidenceRank[state.recommendedLevel];
+  const levelFit = distance === 0 ? 2 : distance < 0 ? 1.2 : distance === 1 ? 0.8 : 0.45;
+  const recentPenalty = recentlySeen ? 0.28 : 1;
+  const selfCheckPace = exercise.type === "self-check" ? 0.8 : 1;
+  return (1 + state.priority / 2) * levelFit * recentPenalty * selfCheckPace;
+}
+
+function adaptiveSample(
+  exercises: readonly Exercise[],
+  count: number,
+  learning: Map<string, SkillLearningState>,
+  recentIds: ReadonlySet<string>,
+  rng: RandomSource,
+  maxSelfChecks = 2,
+): Exercise[] {
+  const selected: Exercise[] = [];
+  const remaining = [...exercises];
+  let repeats = 0;
+  let selfChecks = 0;
+  const select = (exercise: Exercise) => {
+    const state = learning.get(exercise.skillId);
+    selected.push({
+      ...exercise,
+      ...(state?.lastPracticedAt ? { selectionReason: state.reason } : {}),
+    });
+    remaining.splice(remaining.findIndex((candidate) => candidate.id === exercise.id), 1);
+    if (recentIds.has(exercise.id)) repeats += 1;
+    if (exercise.type === "self-check") selfChecks += 1;
+  };
+
+  // One focused slot makes the second run visibly respond to a miss or stale skill.
+  const focus = [...learning.values()]
+    .filter((state) =>
+      state.lastPracticedAt &&
+      ["recent miss", "needs another spoken pass", "not practiced recently"].includes(state.reason) &&
+      exercises.some((exercise) => exercise.skillId === state.skillId),
+    )
+    .sort((left, right) => right.priority - left.priority || left.skillId.localeCompare(right.skillId))[0];
+  if (focus) {
+    const candidates = remaining.filter((exercise) => exercise.skillId === focus.skillId);
+    const fresh = candidates.filter((exercise) => !recentIds.has(exercise.id));
+    select(weightedPick(fresh.length > 0 ? fresh : candidates, (exercise) =>
+      adaptiveWeight(exercise, focus, recentIds.has(exercise.id)), rng));
+  }
+
+  while (selected.length < count && remaining.length > 0) {
+    let candidates = remaining.filter(
+      (exercise) => exercise.type !== "self-check" || selfChecks < maxSelfChecks,
+    );
+    // Keep a focused skill present without letting it fill the whole track.
+    // Sparse banks can still fill the session from the remaining exercises.
+    const otherSkills = candidates.filter(
+      (exercise) =>
+        selected.filter((item) => item.skillId === exercise.skillId).length < 2,
+    );
+    if (otherSkills.length > 0) candidates = otherSkills;
+    if (repeats >= 1) {
+      const fresh = candidates.filter((exercise) => !recentIds.has(exercise.id));
+      if (fresh.length > 0) candidates = fresh;
+    }
+    if (candidates.length === 0) candidates = remaining;
+    select(weightedPick(candidates, (exercise) =>
+      adaptiveWeight(exercise, learning.get(exercise.skillId), recentIds.has(exercise.id)), rng));
   }
 
   return selected;
@@ -203,7 +303,7 @@ function validatesSessionConfig(config: CompanyWorldSessionConfig): boolean {
 function recentMissIds(history: readonly CompletedSession[]): string[] {
   const misses = history
     .flatMap((session) => session.attempts)
-    .filter((attempt) => !attempt.correct)
+    .filter((attempt) => attempt.correct === false)
     .sort(
       (left, right) =>
         Date.parse(right.completedAt) - Date.parse(left.completedAt),
@@ -252,8 +352,14 @@ export function buildCompanyWorldSession(
   }
 
   const eligible = getCompanyEligibleExercises(companyId);
-  const weight = (exercise: Exercise) =>
-    exerciseWeight(exercise, companyId, world.tagWeights);
+  const learning = deriveLearningState(options.history ?? [], allSkills, options.now);
+  const weight = (exercise: Exercise) => {
+    const base = exerciseWeight(exercise, companyId, world.tagWeights);
+    if (mode === "rapid-fire") return base;
+    const state = learning.get(exercise.skillId);
+    // Relevance remains the main company-world signal; adaptation is a small nudge.
+    return base + (state?.lastPracticedAt ? Math.min(3, state.priority / 2) : 0);
+  };
   const motivationCandidates = eligible.filter(
     (exercise) => isCompanyMotivationExercise(exercise, companyId),
   );
@@ -313,7 +419,13 @@ export function buildCompanyWorldSession(
       (exercise) =>
         exercise.track === track && !selectedIds.has(exercise.id),
     );
-    const additions = weightedSample(candidates, slots[track], weight, rng);
+    const additions = weightedSample(
+      candidates,
+      slots[track],
+      weight,
+      rng,
+      Math.max(0, 2 - selected.filter((exercise) => exercise.type === "self-check").length),
+    );
     if (additions.length !== slots[track]) {
       throw new Error(
         `${world.name} needs ${slots[track]} more ${track} exercises but only ${additions.length} are eligible`,
@@ -330,6 +442,12 @@ export function buildCompanyWorldSession(
   }
 
   return shuffled(selected, rng)
+    .map((exercise) => {
+      const state = learning.get(exercise.skillId);
+      return state?.lastPracticedAt && mode === "company"
+        ? { ...exercise, selectionReason: state.reason }
+        : exercise;
+    })
     .map((exercise) => scopeExerciseToCompany(exercise, companyId))
     .map((exercise) => randomizePresentation(exercise, rng));
 }
@@ -348,7 +466,7 @@ export function buildSessionExercises(
   const rng = options.rng ?? Math.random;
 
   if (mode === "daily" || mode === "engineering" || mode === "interview") {
-    return buildPhaseOneSession(mode, rng);
+    return buildPhaseOneSession(mode, rng, options);
   }
 
   if (!companyId) {
@@ -358,7 +476,7 @@ export function buildSessionExercises(
   return buildCompanyWorldSession(companyId, mode, options);
 }
 
-export function evaluateResponse(exercise: Exercise, response: string[]): boolean {
+export function evaluateResponse(exercise: Exercise, response: string[]): boolean | null {
   if (exercise.type === "choice") {
     return response.length === 1 && response[0] === exercise.correctOptionId;
   }
@@ -370,6 +488,8 @@ export function evaluateResponse(exercise: Exercise, response: string[]): boolea
     );
   }
 
+  if (exercise.type === "self-check") return null;
+
   return (
     response.length === exercise.correctOrder.length &&
     response.every((id, index) => id === exercise.correctOrder[index])
@@ -378,8 +498,13 @@ export function evaluateResponse(exercise: Exercise, response: string[]): boolea
 
 export function summarizeSession(session: CompletedSession): SessionSummary {
   const skillScores = new Map<string, { correct: number; total: number }>();
+  const selfReportedReview = new Set<string>();
 
   for (const attempt of session.attempts) {
+    if (attempt.correct === null) {
+      if (attempt.selfAssessment === "needs-work") selfReportedReview.add(attempt.skillId);
+      continue;
+    }
     const current = skillScores.get(attempt.skillId) ?? { correct: 0, total: 0 };
     current.total += 1;
     current.correct += attempt.correct ? 1 : 0;
@@ -388,6 +513,8 @@ export function summarizeSession(session: CompletedSession): SessionSummary {
 
   const score = session.attempts.filter((attempt) => attempt.correct).length;
   const total = session.attempts.length;
+  const gradedTotal = session.attempts.filter((attempt) => attempt.correct !== null).length;
+  const selfCheckCount = total - gradedTotal;
   const ranked = [...skillScores.entries()].sort(
     (left, right) =>
       right[1].correct / right[1].total - left[1].correct / left[1].total,
@@ -396,13 +523,18 @@ export function summarizeSession(session: CompletedSession): SessionSummary {
   return {
     score,
     total,
-    percentage: total === 0 ? 0 : Math.round((score / total) * 100),
+    gradedTotal,
+    selfCheckCount,
+    percentage: gradedTotal === 0 ? 0 : Math.round((score / gradedTotal) * 100),
     strongSkillIds: ranked
-      .filter(([, value]) => value.correct === value.total)
+      .filter(([skillId, value]) => value.correct === value.total && !selfReportedReview.has(skillId))
       .map(([skillId]) => skillId),
-    reviewSkillIds: ranked
-      .filter(([, value]) => value.correct < value.total)
-      .map(([skillId]) => skillId),
+    reviewSkillIds: [...new Set([
+      ...ranked
+        .filter(([, value]) => value.correct < value.total)
+        .map(([skillId]) => skillId),
+      ...selfReportedReview,
+    ])],
   };
 }
 
@@ -410,7 +542,14 @@ export function makeAttempt(
   exercise: Exercise,
   response: string[],
   durationMs: number,
+  selfAssessment?: SelfAssessment,
 ): Attempt {
+  if (exercise.type === "self-check" && !selfAssessment) {
+    throw new Error(`Self-check ${exercise.id} requires a self-assessment`);
+  }
+  if (exercise.type !== "self-check" && selfAssessment) {
+    throw new Error(`Graded exercise ${exercise.id} cannot have a self-assessment`);
+  }
   return {
     exerciseId: exercise.id,
     skillId: exercise.skillId,
@@ -418,6 +557,9 @@ export function makeAttempt(
     type: exercise.type,
     response,
     correct: evaluateResponse(exercise, response),
+    evidenceLevel: exercise.evidenceLevel,
+    difficulty: exercise.difficulty ?? 1,
+    ...(selfAssessment ? { selfAssessment } : {}),
     durationMs,
     completedAt: new Date().toISOString(),
   };

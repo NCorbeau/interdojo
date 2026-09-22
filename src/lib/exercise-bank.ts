@@ -2,6 +2,8 @@ import { companyExerciseModules } from "./company-exercises";
 import { ashbyFocusExercises } from "./shared-exercises/ashby-focus";
 import { attioFocusExercises } from "./shared-exercises/attio-focus";
 import { linearFocusExercises } from "./shared-exercises/linear-focus";
+import { distributedSystemsPhaseThreeExercises } from "./phase-three-exercises/distributed-systems";
+import { systemDesignDrillExercises } from "./phase-three-exercises/system-design";
 import type {
   CompanyId,
   Exercise,
@@ -57,6 +59,11 @@ function withPhaseOneTags(exercise: Exercise): Exercise {
 }
 
 export const phaseOneExercises = phaseOneExerciseDefinitions.map(withPhaseOneTags);
+export const coreExercises: Exercise[] = [
+  ...phaseOneExercises,
+  ...distributedSystemsPhaseThreeExercises,
+  ...systemDesignDrillExercises,
+];
 
 function assertValidExercise(exercise: Exercise): void {
   if (!exercise.id || !exercise.skillId || !exercise.tags || exercise.tags.length === 0) {
@@ -73,6 +80,24 @@ function assertValidExercise(exercise: Exercise): void {
   if (!exercise.source.title || !exercise.source.url.startsWith("https://app.notion.com/")) {
     throw new Error(`Exercise ${exercise.id} needs a canonical Notion source`);
   }
+
+  if (exercise.difficulty !== undefined && ![1, 2, 3].includes(exercise.difficulty)) {
+    throw new Error(`Exercise ${exercise.id} has an invalid difficulty`);
+  }
+  if (
+    ((exercise.type === "choice" || exercise.type === "multi-select") &&
+      exercise.evidenceLevel !== "recognize") ||
+    ((exercise.type === "ordering" || exercise.type === "anchor-reconstruction") &&
+      !["recognize", "apply"].includes(exercise.evidenceLevel)) ||
+    (exercise.type === "self-check" &&
+      (!["recall", "explain"].includes(exercise.evidenceLevel) ||
+        exercise.modelPoints.length === 0 ||
+        exercise.modelPoints.some((point) => !point.trim())))
+  ) {
+    throw new Error(`Exercise ${exercise.id} overstates or lacks its evidence`);
+  }
+
+  if (exercise.type === "self-check") return;
 
   const answerIds =
     exercise.type === "choice" || exercise.type === "multi-select"
@@ -94,7 +119,7 @@ function assertValidExercise(exercise: Exercise): void {
 
 function aggregateExercises(): Exercise[] {
   const combined = [
-    ...phaseOneExercises,
+    ...coreExercises,
     ...ashbyFocusExercises,
     ...attioFocusExercises,
     ...linearFocusExercises,

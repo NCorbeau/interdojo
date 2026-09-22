@@ -21,7 +21,9 @@ const exerciseTypes = new Set<ExerciseType>([
   "multi-select",
   "ordering",
   "anchor-reconstruction",
+  "self-check",
 ]);
+const evidenceLevels = new Set(["recognize", "recall", "apply", "explain"]);
 
 function isBoundedString(value: unknown, maximumLength: number): value is string {
   return (
@@ -44,7 +46,20 @@ function isAttempt(value: unknown): value is Attempt {
     Array.isArray(attempt.response) &&
     attempt.response.length <= 50 &&
     attempt.response.every((item) => isBoundedString(item, 100)) &&
-    typeof attempt.correct === "boolean" &&
+    (attempt.type === "self-check"
+      ? attempt.correct === null &&
+        (attempt.selfAssessment === "got-it" || attempt.selfAssessment === "needs-work") &&
+        (attempt.evidenceLevel === "recall" || attempt.evidenceLevel === "explain") &&
+        attempt.response.length === 1 &&
+        attempt.response[0] === attempt.selfAssessment
+      : typeof attempt.correct === "boolean" &&
+        attempt.selfAssessment === undefined &&
+        (attempt.evidenceLevel === undefined ||
+          ((attempt.type === "choice" || attempt.type === "multi-select")
+            ? attempt.evidenceLevel === "recognize"
+            : attempt.evidenceLevel === "recognize" || attempt.evidenceLevel === "apply"))) &&
+    (attempt.evidenceLevel === undefined || evidenceLevels.has(attempt.evidenceLevel)) &&
+    (attempt.difficulty === undefined || [1, 2, 3].includes(attempt.difficulty)) &&
     typeof attempt.durationMs === "number" &&
     Number.isFinite(attempt.durationMs) &&
     attempt.durationMs >= 0 &&
