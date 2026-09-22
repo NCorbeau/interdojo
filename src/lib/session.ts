@@ -16,6 +16,47 @@ function shuffled<T>(items: T[]): T[] {
   return result;
 }
 
+function shuffledMultiSelectOptions(
+  exercise: Extract<Exercise, { type: "multi-select" }>,
+) {
+  const options = shuffled(exercise.options);
+  const correctIds = new Set(exercise.correctOptionIds);
+  const firstDistractorIndex = options.findIndex(
+    (option) => !correctIds.has(option.id),
+  );
+  const hasCorrectAnswerAfterDistractor = options
+    .slice(firstDistractorIndex + 1)
+    .some((option) => correctIds.has(option.id));
+
+  // A random shuffle can recreate the source-bank pattern by chance. Break that
+  // specific shortcut so learners cannot select a contiguous prefix of answers.
+  if (firstDistractorIndex > 0 && !hasCorrectAnswerAfterDistractor) {
+    const swapIndex = Math.floor(firstDistractorIndex / 2);
+    [options[swapIndex], options[firstDistractorIndex]] = [
+      options[firstDistractorIndex],
+      options[swapIndex],
+    ];
+  }
+
+  return options;
+}
+
+function randomizePresentation(exercise: Exercise): Exercise {
+  if (exercise.type === "choice") {
+    return { ...exercise, options: shuffled(exercise.options) };
+  }
+
+  if (exercise.type === "multi-select") {
+    return { ...exercise, options: shuffledMultiSelectOptions(exercise) };
+  }
+
+  if (exercise.type === "ordering") {
+    return { ...exercise, items: shuffled(exercise.items) };
+  }
+
+  return { ...exercise, anchors: shuffled(exercise.anchors) };
+}
+
 export function buildSessionExercises(mode: SessionMode): Exercise[] {
   if (mode === "daily") {
     const engineering = shuffled(
@@ -24,12 +65,14 @@ export function buildSessionExercises(mode: SessionMode): Exercise[] {
     const interview = shuffled(
       exercises.filter((exercise) => exercise.track === "interview"),
     ).slice(0, 3);
-    return shuffled([...engineering, ...interview]);
+    return shuffled([...engineering, ...interview]).map(randomizePresentation);
   }
 
   return shuffled(
     exercises.filter((exercise) => exercise.track === mode),
-  ).slice(0, 7);
+  )
+    .slice(0, 7)
+    .map(randomizePresentation);
 }
 
 export function evaluateResponse(exercise: Exercise, response: string[]): boolean {
