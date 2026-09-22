@@ -150,8 +150,10 @@ function HomeScreen({
   history: CompletedSession[];
   selectedCompanyId: CompanyId;
 }) {
-  const latest = history[0];
-  const latestSummary = latest ? summarizeSession(latest) : null;
+  const recentSessions = history.slice(0, 3).map((session) => ({
+    session,
+    summary: summarizeSession(session),
+  }));
   const selectedCompany = getCompanyWorld(selectedCompanyId);
   const learning = deriveLearningState(history, allSkills);
   const baselineFocus = ["distributed-systems", "system-design", "node-runtime"];
@@ -180,30 +182,49 @@ function HomeScreen({
         reason: state.reason,
       }))
     : [
-        { name: "Distributed systems", reason: "Current depth gap" },
-        { name: "System design", reason: "Practice the live structure" },
-        { name: "Node.js runtime", reason: "Keep the backend reflex" },
+        { name: "Distributed systems", reason: "A useful place to begin" },
+        { name: "System design", reason: "Build a clear answer structure" },
+        { name: "Node.js runtime", reason: "Warm up the backend reflex" },
       ];
 
   return (
     <main className="home-shell">
-      <section className="home-main">
-        <div className="eyebrow-row">
-          <span className="status-dot" />
-          <span>Phase 3 · Adaptive Brain</span>
-        </div>
+      <header className="home-header">
+        <div className="home-brand"><span aria-hidden="true">IJ</span><strong>Interdojo</strong></div>
+        <span className="home-header__context">Your practice space</span>
+        <span className="home-header__count">{history.length} {history.length === 1 ? "run" : "runs"} saved</span>
+      </header>
 
+      <section className="home-main">
         <div className="hero-copy">
-          <p className="overline">Today’s training</p>
+          <p className="overline"><span className="status-dot" /> Today’s training</p>
           <h1>
             Practice the weak spot.
             <span>Keep the reflex.</span>
           </h1>
           <p>
-            Short drills for technical judgment and interview delivery—built from
-            your real preparation material.
+            Short, focused drills for technical judgment and interview delivery.
           </p>
         </div>
+
+        <section className="today-card" aria-labelledby="today-card-title">
+          <div className="today-card__body">
+            <span className="today-card__icon"><Icon name="bolt" /></span>
+            <div>
+              <p className="overline">Your next session</p>
+              <h2 id="today-card-title">Daily Sprint</h2>
+              <p>{history.length > 0
+                ? "An adaptive mix shaped by your recent practice."
+                : "A quick mix of engineering and interview drills."}</p>
+            </div>
+          </div>
+          <div className="today-card__action">
+            <span><strong>07</strong> drills <i aria-hidden="true">/</i> about 8 min</span>
+            <button onClick={() => onStart("daily")} type="button">
+              Start sprint <Icon name="arrow" />
+            </button>
+          </div>
+        </section>
 
         <section className="company-worlds" aria-labelledby="company-worlds-title">
           <div className="company-worlds__header">
@@ -308,14 +329,14 @@ function HomeScreen({
       <aside className="readiness-panel">
         <div className="readiness-panel__header">
           <div>
-            <p className="overline">From your practice</p>
+            <p className="overline">{history.length > 0 ? "From your practice" : "Suggested starting point"}</p>
             <h2>Practice next</h2>
           </div>
-          <span className="signal-badge">Adaptive</span>
+          {history.length > 0 ? <span className="signal-badge">Adaptive</span> : null}
         </div>
 
         <div className="focus-score">
-          <div className="practice-orbit" aria-hidden="true">↗</div>
+          <div className="practice-orbit" aria-hidden="true">01</div>
           <div>
             <h3>{practiceNext[0].name}</h3>
             <p>{practiceNext[0].reason}</p>
@@ -331,20 +352,31 @@ function HomeScreen({
           ))}
         </div>
 
-        <div className="last-session">
-          <span className="last-session__label">Last run</span>
-          {latestSummary ? (
-            <>
-              <strong>{latestSummary.gradedTotal > 0
-                ? `${latestSummary.percentage}% graded accuracy`
-                : `${latestSummary.selfCheckCount} self-checks rated`}</strong>
-              <p>{getSessionLabel(latest.mode, latest.companyId)} · {latest.attempts.length} drills saved</p>
-            </>
+        <div className="recent-runs">
+          <div className="recent-runs__header">
+            <span className="overline">Recent runs</span>
+            {history.length > 0 ? <span>Last {recentSessions.length}</span> : null}
+          </div>
+          {recentSessions.length > 0 ? (
+            <ol>
+              {recentSessions.map(({ session, summary }) => (
+                <li key={session.id}>
+                  <div className="recent-runs__row">
+                    <strong>{getSessionLabel(session.mode, session.companyId)}</strong>
+                    <span>{summary.gradedTotal > 0
+                      ? `${summary.score}/${summary.gradedTotal} graded`
+                      : `${summary.selfCheckCount} self-checks`}</span>
+                  </div>
+                  {summary.gradedTotal > 0 ? (
+                    <div className="recent-runs__track" aria-label={`${summary.score} of ${summary.gradedTotal} graded answers correct`} role="img">
+                      <span style={{ width: `${summary.percentage}%` }} />
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
           ) : (
-            <>
-              <strong>No attempts yet</strong>
-              <p>Your first sprint establishes the baseline.</p>
-            </>
+            <p className="recent-runs__empty">Your first sprint will start your practice history.</p>
           )}
         </div>
       </aside>
@@ -803,8 +835,14 @@ function SessionScreen({
         <button aria-label="Exit session and return home" className="exit-button" onClick={onExit} type="button">Exit</button>
       </header>
 
-      <div className="progress-track" aria-label="Session progress" aria-valuemax={100} aria-valuemin={0} aria-valuenow={progress} aria-valuetext={`Drill ${index + 1} of ${sessionExercises.length}`} role="progressbar">
-        <span style={{ width: `${progress}%` }} />
+      <div className="session-progress" aria-label="Session progress" aria-valuemax={100} aria-valuemin={0} aria-valuenow={progress} aria-valuetext={`${index + (submitted ? 1 : 0)} of ${sessionExercises.length} drills complete`} role="progressbar">
+        {sessionExercises.map((item, step) => (
+          <span
+            aria-hidden="true"
+            className={`session-progress__step ${step < index || (step === index && submitted) ? "is-complete" : step === index ? "is-current" : ""}`}
+            key={item.id}
+          />
+        ))}
       </div>
 
       <section className="exercise-stage">
