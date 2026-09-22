@@ -1,6 +1,60 @@
 export type Track = "engineering" | "interview";
 
-export type SessionMode = "daily" | Track;
+export type CompanyId = "ashby" | "attio" | "linear";
+
+export type PhaseOneSessionMode = "daily" | Track;
+
+export type CompanySessionMode = "company" | "rapid-fire";
+
+export type SessionMode = PhaseOneSessionMode | CompanySessionMode;
+
+export type SessionRequest =
+  | { mode: PhaseOneSessionMode }
+  | { mode: CompanySessionMode; companyId: CompanyId };
+
+export type ExerciseTag =
+  | "react-typescript"
+  | "api-backed-ui"
+  | "node-runtime"
+  | "product-judgment"
+  | "domain-modeling"
+  | "api-data"
+  | "transactions"
+  | "staff-judgment"
+  | "state-architecture"
+  | "realtime"
+  | "performance"
+  | "interaction-quality"
+  | "distributed-systems"
+  | "system-design"
+  | "career-narrative"
+  | "company-motivation"
+  | "claim-boundaries"
+  | "behavioral"
+  | "ai-assisted-engineering";
+
+export type SourceReference = {
+  title: string;
+  url: string;
+};
+
+export type TrackCounts = Record<Track, number>;
+
+export type CompanyWorldSessionConfig = {
+  size: number;
+  trackCounts: TrackCounts;
+};
+
+export type CompanyWorld = {
+  id: CompanyId;
+  name: string;
+  description: string;
+  focusAreas: string[];
+  source: SourceReference;
+  tagWeights: Partial<Record<ExerciseTag, number>>;
+  standard: CompanyWorldSessionConfig;
+  rapidFire: CompanyWorldSessionConfig;
+};
 
 export type ExerciseType =
   | "choice"
@@ -23,10 +77,8 @@ export type AnswerExample = {
   id: string;
   label: string;
   answer: string;
-  source?: {
-    title: string;
-    url: string;
-  };
+  companyId?: CompanyId;
+  source?: SourceReference;
 };
 
 type ExerciseBase = {
@@ -38,11 +90,10 @@ type ExerciseBase = {
   prompt: string;
   instruction: string;
   explanation: string;
+  tags?: ExerciseTag[];
+  companyId?: CompanyId;
   answerExamples?: AnswerExample[];
-  source: {
-    title: string;
-    url: string;
-  };
+  source: SourceReference;
 };
 
 export type ChoiceExercise = ExerciseBase & {
@@ -89,6 +140,7 @@ export type Attempt = {
 export type CompletedSession = {
   id: string;
   mode: SessionMode;
+  companyId?: CompanyId;
   startedAt: string;
   completedAt: string;
   attempts: Attempt[];

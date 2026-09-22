@@ -1,94 +1,78 @@
 import type { AnswerExample, Exercise, Skill } from "./domain";
+import {
+  companySources,
+  preparationSources,
+  technicalSources,
+} from "./sources";
 
-const distributedSystemsSource = {
-  title: "Distributed Systems & Async Work — Study Guide",
-  url: "https://app.notion.com/p/3e0e60f718a9813facc4f533f2cf1803",
-};
-
-const nodeSource = {
-  title: "Node.js & Backend Runtime — Study Guide",
-  url: "https://app.notion.com/p/3e0e60f718a9812a9c13d798c63b454a",
-};
-
-const systemDesignSource = {
-  title: "System Design — Study Guide",
-  url: "https://app.notion.com/p/3e0e60f718a9814fbceec83ebd05676c",
-};
-
-const answerBankSource = {
-  title: "Interview Answer Bank",
-  url: "https://app.notion.com/p/3e0e60f718a981379164c3fbc583a94b",
-};
-
-const storyBankSource = {
-  title: "Kalepa — Staff Story Bank",
-  url: "https://app.notion.com/p/3dde60f718a981cea77feae7ee8acd4d",
-};
-
-const companyAnswerSources = {
-  ashby: {
-    title: "Why Ashby — Answer Card",
-    url: "https://app.notion.com/p/3e0e60f718a9818c8daadc6396050d48",
-  },
-  attio: {
-    title: "Why Attio — Answer Card",
-    url: "https://app.notion.com/p/3e0e60f718a981d1956ef09f5649ccc2",
-  },
-  linear: {
-    title: "Why Linear — Answer Card",
-    url: "https://app.notion.com/p/3e0e60f718a98183b920c4fec6073866",
-  },
-};
+const distributedSystemsSource = technicalSources.distributedSystems;
+const nodeSource = technicalSources.node;
+const systemDesignSource = technicalSources.systemDesign;
+const answerBankSource = preparationSources.answerBank;
+const storyBankSource = preparationSources.storyBank;
 
 const companyAnswerExamples: AnswerExample[] = [
   {
     id: "ashby",
-    label: "#1 Ashby",
+    label: "Ashby",
+    companyId: "ashby",
     answer:
-      "Ashby stands out to me because the combination is unusually coherent: strong product engineering, a high bar for engineers owning problems end to end, and one of the clearest public examples I’ve seen of AI being integrated into the engineering operating model rather than added on top. That maps well to how I’ve worked—complex cross-stack workflows at Kalepa and architectural foundations at Appfire that enabled later work. After Kalepa, I also know I want AI to be part of normal engineering practice, so Ashby is particularly interesting to me now.",
-    source: companyAnswerSources.ashby,
+      "Ashby stands out to me because the combination is unusually coherent: strong product engineering, a high bar for engineers owning problems end to end, and one of the clearest public examples I’ve seen of AI being integrated into the engineering operating model rather than added on top. That maps well to how I’ve worked—repeatedly turning broad product intent into detailed behavior or design under strong review, carrying complex cross-stack workflows at Kalepa, and building architectural foundations at Appfire that enabled later work. After Kalepa, I also know I want AI to be part of normal engineering practice, so Ashby is particularly interesting to me now.",
+    source: companySources.ashby,
   },
   {
     id: "attio",
-    label: "#2 Attio",
+    label: "Attio",
+    companyId: "attio",
     answer:
-      "Attio is interesting to me because the product itself is built around a flexible data model, and the Staff role appears to combine deep product work with architectural judgment. That maps strongly to work I’ve done around typed capabilities, internationalization and resource-planning foundations—problems where the hard part was getting the domain model right across layers, not just implementing a screen. I also like roles where Staff impact still includes shipping product directly, which is the balance I’m looking for next.",
-    source: companyAnswerSources.attio,
+      "Attio is interesting to me because the product itself is built around a flexible data model, and the Staff role appears to combine deep product work with architectural judgment. That maps strongly to work I’ve done around typed capabilities, internationalization and resource-planning foundations—problems where the hard part was getting the domain model and product behavior right across layers, not just implementing a screen. I’ve also repeatedly had to turn broad product intent into detailed requirements or interaction designs and refine them through strong product/design feedback. I also like roles where Staff impact still includes shipping product directly, which is the balance I’m looking for next.",
+    source: companySources.attio,
   },
   {
     id: "linear",
-    label: "#3 Linear",
+    label: "Linear",
+    companyId: "linear",
     answer:
-      "Linear is compelling because product quality seems to be treated as an engineering concern, not just a design concern. A lot of my work has been exactly at that boundary—taking complex domain constraints and turning them into product behavior that feels coherent, including the resource-planning work at Appfire and cross-stack workflows at Kalepa. I also like that the role appears to value engineers who follow the problem rather than staying inside one layer, which is how I want to operate at Staff scope.",
-    source: companyAnswerSources.linear,
+      "Linear is compelling because product quality seems to be treated as an engineering concern, not just a design concern. A lot of my work has been exactly at that boundary—taking broad or complex requirements and turning them into coherent product behavior. At Kuehne+Nagel I scoped rough business visions and proposed interaction designs; at Kalepa I often clarified detailed requirements or proposed designs before iterating with Product and a lead designer; and at Appfire I connected resource-planning architecture directly to how the product behaved. I also like that the role appears to value engineers who follow the problem rather than staying inside one layer, which is how I want to operate at Staff scope.",
+    source: companySources.linear,
   },
 ];
 
 const extendedCompanyAnswerExamples: AnswerExample[] = [
   {
     id: "ashby",
-    label: "#1 Ashby",
+    label: "Ashby",
+    companyId: "ashby",
     answer:
       "After Kalepa ended, I made the search deliberate: I defined the criteria that matter to me, researched a broad set of companies and kept a living evidence-based ranking. Ashby rose to the top of my current shortlist because the product-engineering scope, engineering bar and documented AI operating model align unusually well. The company expects engineers to own problems end to end, and its public material describes AI as part of normal engineering work rather than a demo layer. That maps to my cross-stack workflow ownership at Kalepa and the architectural foundations I built at Appfire to make later work safer and faster. Kalepa also clarified how much I value genuinely AI-native engineering and strong async communication, so the combination feels especially relevant now.",
-    source: companyAnswerSources.ashby,
+    source: companySources.ashby,
   },
   {
     id: "attio",
-    label: "#2 Attio",
+    label: "Attio",
+    companyId: "attio",
     answer:
       "After Kalepa ended, I made the search deliberate rather than applying broadly, and Attio remained near the top of the shortlist because its flexible data model and Staff Product Engineer scope map unusually well to my experience. The interesting part for me is that getting the domain model right is itself a product problem. That connects directly to my work on typed capabilities, internationalization across storage, backend and frontend, and the resource-planning foundations at Appfire. I’ve also mentored another engineer into meaningful ownership. I’m looking for Staff-level leverage while staying close to the product and implementation, and Attio appears to offer exactly that balance.",
-    source: companyAnswerSources.attio,
+    source: companySources.attio,
   },
   {
     id: "linear",
-    label: "#3 Linear",
+    label: "Linear",
+    companyId: "linear",
     answer:
       "After Kalepa ended, I made the search deliberate and kept a living evidence-based ranking. Linear stayed near the top because its product and interaction bar, engineering ownership and Staff product scope fit my background unusually well. What stands out is that product quality appears to be treated as an engineering concern and that engineers are expected to follow a problem across boundaries. At Appfire I reshaped the architecture behind a resource-planning grid so it preserved user context and enabled grouping and filtering; at Kalepa I carried complex workflows across UI, APIs and data. I want to keep using my frontend architecture depth as a force multiplier without letting it define the boundary of my scope, which is why Linear is compelling now.",
-    source: companyAnswerSources.linear,
+    source: companySources.linear,
   },
 ];
 
 export const skills: Skill[] = [
+  { id: "react-typescript", name: "React & TypeScript", track: "engineering" },
+  { id: "frontend-architecture", name: "Frontend architecture", track: "engineering" },
+  { id: "api-backed-ui", name: "API-backed UI", track: "engineering" },
+  { id: "api-design", name: "API design", track: "engineering" },
+  { id: "domain-modeling", name: "Domain modeling", track: "engineering" },
+  { id: "api-data", name: "API & data contracts", track: "engineering" },
+  { id: "transactions", name: "Transactions & concurrency", track: "engineering" },
   { id: "distributed-systems", name: "Distributed systems", track: "engineering" },
   { id: "node-runtime", name: "Node.js runtime", track: "engineering" },
   { id: "system-design", name: "System design", track: "engineering" },

@@ -13,7 +13,8 @@
     "deploy:vinext": "vinext-cloudflare deploy --config dist/server/wrangler.json",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "verify:phase2": "jiti scripts/verify-phase-two.ts"
   },
   "dependencies": {
     "@vinext/cloudflare": "1.0.0-beta.8",

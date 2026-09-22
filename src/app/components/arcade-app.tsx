@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { exercises, getSkill } from "@/lib/exercises";
+import { companyWorlds, getCompanyWorld } from "@/lib/company-worlds";
+import { allExercises, allSkills } from "@/lib/exercise-bank";
 import type {
   AnswerExample,
   AnchorExercise,
   Attempt,
+  CompanyId,
   CompletedSession,
   Exercise,
   OrderingExercise,
+  PhaseOneSessionMode,
   SessionMode,
 } from "@/lib/domain";
 import {
@@ -16,14 +19,16 @@ import {
   makeAttempt,
   summarizeSession,
 } from "@/lib/session";
+import { isCompletedSession } from "@/lib/session-validation";
 
 const LOCAL_HISTORY_KEY = "interdojo:sessions:v1";
 const LEGACY_LOCAL_HISTORY_KEY = "interview-arcade:sessions:v1";
+const LAST_COMPANY_KEY = "interdojo:last-company:v1";
 
 type Screen = "home" | "session" | "results";
 
 const modes: Array<{
-  id: SessionMode;
+  id: PhaseOneSessionMode;
   kicker: string;
   title: string;
   description: string;
@@ -56,6 +61,21 @@ const modes: Array<{
   },
 ];
 
+function getSessionLabel(mode: SessionMode, companyId?: CompanyId) {
+  if (mode === "company" || mode === "rapid-fire") {
+    const companyName = companyId ? getCompanyWorld(companyId).name : "Company";
+    return mode === "rapid-fire"
+      ? `${companyName} · Rapid Fire`
+      : `${companyName} · World`;
+  }
+
+  return modes.find((candidate) => candidate.id === mode)?.title ?? "Training";
+}
+
+function getSkillName(skillId: string) {
+  return allSkills.find((skill) => skill.id === skillId)?.name;
+}
+
 function Icon({ name }: { name: "bolt" | "code" | "voice" | "arrow" | "check" }) {
   const paths = {
     bolt: "M13 2 4.5 13H11l-1 9L19.5 11H13l0-9Z",
@@ -76,14 +96,16 @@ function loadLocalHistory(): CompletedSession[] {
   try {
     const currentHistory = localStorage.getItem(LOCAL_HISTORY_KEY);
     if (currentHistory) {
-      return JSON.parse(currentHistory) as CompletedSession[];
+      const parsed: unknown = JSON.parse(currentHistory);
+      return Array.isArray(parsed) ? parsed.filter(isCompletedSession) : [];
     }
 
     const legacyHistory = localStorage.getItem(LEGACY_LOCAL_HISTORY_KEY);
     if (!legacyHistory) return [];
 
     localStorage.setItem(LOCAL_HISTORY_KEY, legacyHistory);
-    return JSON.parse(legacyHistory) as CompletedSession[];
+    const parsed: unknown = JSON.parse(legacyHistory);
+    return Array.isArray(parsed) ? parsed.filter(isCompletedSession) : [];
   } catch {
     return [];
   }
@@ -107,7 +129,7 @@ async function persistSession(session: CompletedSession) {
   }
 }
 
-function ModeIcon({ mode }: { mode: SessionMode }) {
+function ModeIcon({ mode }: { mode: PhaseOneSessionMode }) {
   return (
     <span className="mode-icon">
       <Icon name={mode === "daily" ? "bolt" : mode === "engineering" ? "code" : "voice"} />
@@ -117,20 +139,25 @@ function ModeIcon({ mode }: { mode: SessionMode }) {
 
 function HomeScreen({
   onStart,
+  onSelectCompany,
   history,
+  selectedCompanyId,
 }: {
-  onStart: (mode: SessionMode) => void;
+  onStart: (mode: SessionMode, companyId?: CompanyId) => void;
+  onSelectCompany: (companyId: CompanyId) => void;
   history: CompletedSession[];
+  selectedCompanyId: CompanyId;
 }) {
   const latest = history[0];
   const latestSummary = latest ? summarizeSession(latest) : null;
+  const selectedCompany = getCompanyWorld(selectedCompanyId);
 
   return (
     <main className="home-shell">
       <section className="home-main">
         <div className="eyebrow-row">
           <span className="status-dot" />
-          <span>Phase 1 · Playable Core</span>
+          <span>Phase 2 · Company Worlds</span>
         </div>
 
         <div className="hero-copy">
@@ -145,7 +172,81 @@ function HomeScreen({
           </p>
         </div>
 
-        <div className="mode-grid" aria-label="Training modes">
+        <section className="company-worlds" aria-labelledby="company-worlds-title">
+          <div className="company-worlds__header">
+            <div>
+              <p className="overline">Company worlds</p>
+              <h2 id="company-worlds-title">Practice for the room you want.</h2>
+            </div>
+            <span className="company-worlds__count">03 worlds</span>
+          </div>
+
+          <div className="company-selector" aria-label="Choose a company world" role="group">
+            {companyWorlds.map((company) => (
+              <button
+                aria-pressed={company.id === selectedCompanyId}
+                className={company.id === selectedCompanyId ? "is-selected" : undefined}
+                key={company.id}
+                onClick={() => onSelectCompany(company.id)}
+                type="button"
+              >
+                <span className="company-selector__mark" aria-hidden="true">
+                  {company.name.slice(0, 1)}
+                </span>
+                <span>
+                  <strong>{company.name}</strong>
+                  <small>{company.focusAreas.slice(0, 2).join(" · ")}</small>
+                </span>
+                <span className="company-selector__state" aria-hidden="true">
+                  {company.id === selectedCompanyId ? "Selected" : "Choose"}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="company-world-detail" key={selectedCompany.id}>
+            <div className="company-world-detail__copy">
+              <span className="company-world-detail__eyebrow">Selected world</span>
+              <h3>{selectedCompany.name}</h3>
+              <p>{selectedCompany.description}</p>
+              <ul aria-label={`${selectedCompany.name} focus areas`}>
+                {selectedCompany.focusAreas.map((focusArea) => (
+                  <li key={focusArea}>{focusArea}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="company-world-detail__actions">
+              <p><strong>Standard world</strong> · 5 engineering + 2 interview drills</p>
+              <button
+                className="company-start-button"
+                onClick={() => onStart("company", selectedCompany.id)}
+                type="button"
+              >
+                Start {selectedCompany.name} World <Icon name="arrow" />
+              </button>
+              <button
+                className="company-rapid-button"
+                onClick={() => onStart("rapid-fire", selectedCompany.id)}
+                type="button"
+              >
+                <span>Rapid Fire</span>
+                <small>5 drills · recent misses first</small>
+                <Icon name="bolt" />
+              </button>
+              <a href={selectedCompany.source.url} rel="noreferrer" target="_blank">
+                Company source: {selectedCompany.source.title} <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <div className="core-training-heading">
+          <p className="overline">Core training</p>
+          <span>Keep building the fundamentals</span>
+        </div>
+
+        <div className="mode-grid" aria-label="Core training modes">
           {modes.map((mode, index) => (
             <button
               className={`mode-card mode-card--${mode.accent}`}
@@ -202,7 +303,7 @@ function HomeScreen({
           {latestSummary ? (
             <>
               <strong>{latestSummary.percentage}% accuracy</strong>
-              <p>{latest?.attempts.length} drills saved on this device</p>
+              <p>{getSessionLabel(latest.mode, latest.companyId)} · {latest.attempts.length} drills saved</p>
             </>
           ) : (
             <>
@@ -470,12 +571,14 @@ function AnswerExamplePanel({
 }
 
 function SessionScreen({
+  companyId,
   mode,
   sessionExercises,
   initialStartedAt,
   onExit,
   onFinish,
 }: {
+  companyId?: CompanyId;
   mode: SessionMode;
   sessionExercises: Exercise[];
   initialStartedAt: number;
@@ -489,6 +592,7 @@ function SessionScreen({
   const [startedAt, setStartedAt] = useState(initialStartedAt);
   const questionHeadingRef = useRef<HTMLHeadingElement>(null);
   const exercise = sessionExercises[index];
+  const sessionLabel = getSessionLabel(mode, companyId);
   const currentAttempt = attempts[attempts.length - 1];
   const progress = ((index + (submitted ? 1 : 0)) / sessionExercises.length) * 100;
 
@@ -583,7 +687,7 @@ function SessionScreen({
           <span>IJ</span> Interdojo
         </button>
         <div className="session-meta">
-          <span>{modes.find((candidate) => candidate.id === mode)?.title}</span>
+          <span title={sessionLabel}>{sessionLabel}</span>
           <strong>{index + 1} / {sessionExercises.length}</strong>
         </div>
         <button aria-label="Exit session and return home" className="exit-button" onClick={onExit} type="button">Exit</button>
@@ -674,13 +778,15 @@ function ResultsScreen({
   onRetry: () => void;
 }) {
   const summary = summarizeSession(session);
-  const strong = summary.strongSkillIds.map((id) => getSkill(id)?.name).filter(Boolean);
-  const review = summary.reviewSkillIds.map((id) => getSkill(id)?.name).filter(Boolean);
+  const strong = summary.strongSkillIds.map(getSkillName).filter(Boolean);
+  const review = summary.reviewSkillIds.map(getSkillName).filter(Boolean);
+  const sessionLabel = getSessionLabel(session.mode, session.companyId);
+  const isCompanySession = session.mode === "company" || session.mode === "rapid-fire";
 
   return (
     <main className="results-shell">
       <div className="results-card">
-        <p className="overline">Sprint complete</p>
+        <p className="overline">{sessionLabel} · Complete</p>
         <div className="results-hero">
           <div aria-label={`${summary.percentage} percent accuracy`} className="result-score">
             <span>{summary.percentage}</span><small>%</small>
@@ -704,7 +810,11 @@ function ResultsScreen({
 
         <div className="results-note">
           <strong>What happens now</strong>
-          <p>Your attempts were saved. Phase 1 reports the signal; adaptive scheduling arrives in Phase 3.</p>
+          <p>
+            {isCompanySession
+              ? `Your ${sessionLabel} attempts were saved. Rapid Fire can bring recent misses back into the next five-drill run.`
+              : "Your attempts were saved. Phase 1 reports the signal; adaptive scheduling arrives in Phase 3."}
+          </p>
         </div>
 
         <div className="results-actions">
@@ -719,12 +829,19 @@ function ResultsScreen({
 export function ArcadeApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [mode, setMode] = useState<SessionMode>("daily");
+  const [selectedCompanyId, setSelectedCompanyId] = useState<CompanyId>("ashby");
+  const [activeCompanyId, setActiveCompanyId] = useState<CompanyId | undefined>();
   const [sessionExercises, setSessionExercises] = useState<Exercise[]>([]);
   const [sessionStartedAt, setSessionStartedAt] = useState("");
   const [completedSession, setCompletedSession] = useState<CompletedSession | null>(null);
   const [history, setHistory] = useState<CompletedSession[]>([]);
 
   useEffect(() => {
+    const storedCompanyId = localStorage.getItem(LAST_COMPANY_KEY);
+    if (companyWorlds.some((company) => company.id === storedCompanyId)) {
+      queueMicrotask(() => setSelectedCompanyId(storedCompanyId as CompanyId));
+    }
+
     const localHistory = loadLocalHistory();
     queueMicrotask(() => setHistory(localHistory));
 
@@ -752,13 +869,30 @@ export function ArcadeApp() {
   }, [screen]);
 
   const exerciseLookup = useMemo(
-    () => new Map(exercises.map((exercise) => [exercise.id, exercise])),
+    () => new Map(allExercises.map((exercise) => [exercise.id, exercise])),
     [],
   );
 
-  function start(nextMode: SessionMode) {
+  function selectCompany(companyId: CompanyId) {
+    setSelectedCompanyId(companyId);
+    localStorage.setItem(LAST_COMPANY_KEY, companyId);
+  }
+
+  function start(nextMode: SessionMode, nextCompanyId?: CompanyId) {
+    const isCompanyMode = nextMode === "company" || nextMode === "rapid-fire";
+    const companyId = isCompanyMode
+      ? nextCompanyId ?? selectedCompanyId
+      : undefined;
+    const exercises = isCompanyMode && companyId
+      ? buildSessionExercises(
+          { mode: nextMode, companyId },
+          nextMode === "rapid-fire" ? { history } : {},
+        )
+      : buildSessionExercises(nextMode);
+
     setMode(nextMode);
-    setSessionExercises(buildSessionExercises(nextMode));
+    setActiveCompanyId(companyId);
+    setSessionExercises(exercises);
     setSessionStartedAt(new Date().toISOString());
     setCompletedSession(null);
     setScreen("session");
@@ -768,6 +902,7 @@ export function ArcadeApp() {
     const session: CompletedSession = {
       id: crypto.randomUUID(),
       mode,
+      ...(activeCompanyId ? { companyId: activeCompanyId } : {}),
       startedAt: sessionStartedAt,
       completedAt: new Date().toISOString(),
       attempts: attempts.filter((attempt) => exerciseLookup.has(attempt.exerciseId)),
@@ -781,6 +916,7 @@ export function ArcadeApp() {
   if (screen === "session") {
     return (
       <SessionScreen
+        companyId={activeCompanyId}
         initialStartedAt={Date.parse(sessionStartedAt)}
         mode={mode}
         onExit={() => setScreen("home")}
@@ -794,11 +930,18 @@ export function ArcadeApp() {
     return (
       <ResultsScreen
         onHome={() => setScreen("home")}
-        onRetry={() => start(mode)}
+        onRetry={() => start(completedSession.mode, completedSession.companyId)}
         session={completedSession}
       />
     );
   }
 
-  return <HomeScreen history={history} onStart={start} />;
+  return (
+    <HomeScreen
+      history={history}
+      onSelectCompany={selectCompany}
+      onStart={start}
+      selectedCompanyId={selectedCompanyId}
+    />
+  );
 }

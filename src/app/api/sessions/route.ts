@@ -1,4 +1,5 @@
 import type { CompletedSession } from "@/lib/domain";
+import { isCompletedSession } from "@/lib/session-validation";
 
 type D1Statement = {
   bind: (...values: unknown[]) => D1Statement;
@@ -17,23 +18,6 @@ async function getDatabase(): Promise<D1Database | undefined> {
   } catch {
     return undefined;
   }
-}
-
-function isCompletedSession(value: unknown): value is CompletedSession {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<CompletedSession>;
-  return (
-    typeof candidate.id === "string" &&
-    candidate.id.length <= 100 &&
-    (candidate.mode === "daily" ||
-      candidate.mode === "engineering" ||
-      candidate.mode === "interview") &&
-    typeof candidate.startedAt === "string" &&
-    typeof candidate.completedAt === "string" &&
-    Array.isArray(candidate.attempts) &&
-    candidate.attempts.length > 0 &&
-    candidate.attempts.length <= 20
-  );
 }
 
 export async function GET() {
@@ -59,7 +43,7 @@ export async function GET() {
         return null;
       }
     })
-    .filter(Boolean);
+    .filter(isCompletedSession);
 
   return Response.json({ sessions, storage: "d1" });
 }

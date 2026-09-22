@@ -1,0 +1,131 @@
+import type { Exercise } from "../domain";
+import { companySources, technicalSources } from "../sources";
+
+const reactSource = technicalSources.react;
+const typescriptSource = technicalSources.javascriptTypeScript;
+const apiSource = technicalSources.apiDesign;
+const nodeSource = technicalSources.node;
+
+/** Shared engineering drills that emphasize Ashby's React/TypeScript and product-engineering profile. */
+export const ashbyFocusExercises: Exercise[] = [
+  {
+    id: "shared-ashby-react-state-owner",
+    skillId: "frontend-architecture",
+    track: "engineering",
+    type: "multi-select",
+    eyebrow: "React state ownership",
+    prompt: "You are building an editable, filterable candidate table. Which choices produce a maintainable React state model?",
+    instruction: "Select every sound choice.",
+    options: [
+      { id: "canonical", label: "Give each durable domain fact one canonical owner" },
+      { id: "derived", label: "Derive filtered rows from canonical data rather than synchronizing a second copy" },
+      { id: "local", label: "Keep draft text, selection and modal state close to the workflow that owns them" },
+      { id: "effects", label: "Use effects to synchronize every derived array back into global state" },
+      { id: "global", label: "Put every table value in one global store for convenience" },
+    ],
+    correctOptionIds: ["canonical", "derived", "local"],
+    explanation: "A clear source of truth plus derived views prevents drift. Ephemeral interaction state should remain local when possible; effects and an all-purpose global store obscure ownership and broaden invalidation.",
+    tags: ["react-typescript", "state-architecture", "product-judgment"],
+    source: reactSource,
+  },
+  {
+    id: "shared-ashby-typescript-boundary",
+    skillId: "react-typescript",
+    track: "engineering",
+    type: "choice",
+    eyebrow: "TypeScript boundary",
+    prompt: "An API returns untrusted JSON for a candidate record. Where should the application establish the trusted TypeScript shape?",
+    instruction: "Choose the strongest answer.",
+    options: [
+      { id: "boundary", label: "Validate and normalize at the API boundary, then pass a domain type inward" },
+      { id: "assert", label: "Use `as Candidate` wherever the response is consumed" },
+      { id: "any", label: "Keep the response as `any` until rendering" },
+      { id: "optional", label: "Make every property optional and let components decide" },
+    ],
+    correctOptionId: "boundary",
+    explanation: "TypeScript annotations do not validate runtime data. A single boundary that validates and normalizes the payload makes assumptions explicit and keeps rendering code honest.",
+    tags: ["react-typescript", "api-backed-ui"],
+    source: typescriptSource,
+  },
+  {
+    id: "shared-ashby-api-loading-state",
+    skillId: "api-backed-ui",
+    track: "engineering",
+    type: "multi-select",
+    eyebrow: "API-backed UI",
+    prompt: "A search screen can be loading, stale while a new request runs, empty, successful, or failed. Which implementation choices preserve useful user feedback?",
+    instruction: "Select every sound choice.",
+    options: [
+      { id: "stale", label: "Keep the previous result visible while indicating that a refresh is in flight" },
+      { id: "empty", label: "Distinguish no matches from a request that has not completed" },
+      { id: "error", label: "Expose a retry path and preserve enough context to retry safely" },
+      { id: "blank", label: "Clear the list immediately for every keystroke" },
+      { id: "boolean", label: "Represent the whole lifecycle with one `isLoading` boolean" },
+    ],
+    correctOptionIds: ["stale", "empty", "error"],
+    explanation: "A useful API-backed UI models the request lifecycle, not only a spinner. Stale data, empty results and errors have different meanings and should not collapse into a blank screen or one boolean.",
+    tags: ["api-backed-ui", "react-typescript", "interaction-quality"],
+    source: apiSource,
+  },
+  {
+    id: "shared-ashby-mutation-contract",
+    skillId: "api-design",
+    track: "engineering",
+    type: "choice",
+    eyebrow: "Mutation contract",
+    prompt: "A user moves a candidate between stages. Which API design best protects the domain invariant and makes retries understandable?",
+    instruction: "Choose the strongest contract.",
+    options: [
+      { id: "command", label: "An explicit transition operation with authorization, validation and idempotency semantics" },
+      { id: "client", label: "Let the browser update several tables independently" },
+      { id: "generic", label: "Accept an untyped command payload with no documented result" },
+      { id: "patch", label: "Patch whichever display fields the current screen happens to show" },
+    ],
+    correctOptionId: "command",
+    explanation: "A named domain operation makes legal transitions, authorization, retries and the resulting state explicit. Client-side table choreography leaks invariants and creates partial-update failure modes.",
+    tags: ["api-backed-ui", "product-judgment", "distributed-systems"],
+    source: apiSource,
+  },
+  {
+    id: "shared-ashby-node-event-loop",
+    skillId: "node-runtime",
+    track: "engineering",
+    type: "multi-select",
+    eyebrow: "Node runtime",
+    prompt: "A Node service becomes intermittently slow under load. Which investigation steps are more useful than immediately adding workers?",
+    instruction: "Select every useful step.",
+    options: [
+      { id: "event-loop", label: "Measure event-loop delay and identify synchronous hot paths" },
+      { id: "io", label: "Inspect downstream latency, connection pools and pending I/O" },
+      { id: "profile", label: "Capture representative profiles and correlate them with request shape" },
+      { id: "workers", label: "Add worker processes before establishing whether the bottleneck is CPU" },
+      { id: "timeout", label: "Increase every timeout so the service has more time to finish" },
+    ],
+    correctOptionIds: ["event-loop", "io", "profile"],
+    explanation: "Node latency can come from event-loop blocking, downstream I/O, pool exhaustion or workload-specific code. Measure the bottleneck first; more workers or longer timeouts can mask rather than fix it.",
+    tags: ["node-runtime", "distributed-systems", "product-judgment"],
+    source: nodeSource,
+  },
+  {
+    id: "shared-ashby-optimistic-update",
+    skillId: "api-backed-ui",
+    track: "engineering",
+    type: "ordering",
+    eyebrow: "Optimistic interaction",
+    prompt: "A stage change should feel immediate but the server remains authoritative. Arrange a robust optimistic-update flow.",
+    instruction: "Arrange the steps from first to last.",
+    items: [
+      { id: "intent", label: "Capture the user intent and the affected entity/version" },
+      { id: "optimistic", label: "Apply the optimistic view with a clear pending state" },
+      { id: "request", label: "Send an idempotent mutation to the server" },
+      { id: "confirm", label: "Reconcile with the authoritative response or refetch" },
+      { id: "rollback", label: "On conflict or failure, explain and restore/reconcile the view" },
+    ],
+    correctOrder: ["intent", "optimistic", "request", "confirm", "rollback"],
+    explanation: "Optimism changes perceived latency, not authority. Track enough context to reconcile out-of-order responses, confirm the server result, and make failures visible rather than silently diverging.",
+    tags: ["api-backed-ui", "react-typescript", "interaction-quality"],
+    source: apiSource,
+  },
+];
+
+export const ashbyFocusSource = companySources.ashby;
