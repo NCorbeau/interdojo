@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { exercises, getSkill } from "@/lib/exercises";
 import type {
   AnswerExample,
+  AnchorExercise,
   Attempt,
   CompletedSession,
   Exercise,
+  OrderingExercise,
   SessionMode,
 } from "@/lib/domain";
 import {
@@ -377,6 +379,47 @@ function ResponseControl({
   );
 }
 
+function CorrectOrderDisclosure({
+  exercise,
+}: {
+  exercise: OrderingExercise | AnchorExercise;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const options = exercise.type === "ordering" ? exercise.items : exercise.anchors;
+  const sequence = exercise.correctOrder
+    .map((id) => options.find((option) => option.id === id))
+    .filter((option): option is NonNullable<typeof option> => Boolean(option));
+  const answerKind = exercise.type === "ordering" ? "order" : "structure";
+  const contentId = `correct-${answerKind}-${exercise.id}`;
+
+  return (
+    <section className={`correct-order-disclosure ${expanded ? "is-expanded" : ""}`}>
+      <button
+        aria-controls={contentId}
+        aria-expanded={expanded}
+        onClick={() => setExpanded((current) => !current)}
+        type="button"
+      >
+        <span>
+          <strong>{expanded ? "Hide" : "Show"} correct {answerKind}</strong>
+          <small>Reveal it only when you want the answer.</small>
+        </span>
+        <span aria-hidden="true" className="correct-order-disclosure__icon">
+          {expanded ? "−" : "+"}
+        </span>
+      </button>
+
+      {expanded ? (
+        <ol id={contentId}>
+          {sequence.map((option) => (
+            <li key={option.id}>{option.label}</li>
+          ))}
+        </ol>
+      ) : null}
+    </section>
+  );
+}
+
 function AnswerExamplePanel({
   examples,
   fallbackSource,
@@ -587,11 +630,18 @@ function SessionScreen({
             </div>
           ) : null}
 
+          {submitted &&
+          currentAttempt &&
+          !currentAttempt.correct &&
+          (exercise.type === "ordering" || exercise.type === "anchor-reconstruction") ? (
+            <CorrectOrderDisclosure exercise={exercise} key={`correct-${exercise.id}`} />
+          ) : null}
+
           {submitted && exercise.answerExamples ? (
             <AnswerExamplePanel
               examples={exercise.answerExamples}
               fallbackSource={exercise.source}
-              key={exercise.id}
+              key={`example-${exercise.id}`}
             />
           ) : null}
 
