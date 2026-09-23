@@ -15,7 +15,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "typecheck": "next typegen && tsc --noEmit",
     "verify:phase2": "jiti scripts/verify-phase-two.ts",
-    "verify:phase3": "jiti scripts/verify-phase-three.ts"
+    "verify:phase3": "jiti scripts/verify-phase-three.ts",
+    "verify:boss-fight": "jiti src/lib/boss-fight/verify.ts && jiti scripts/verify-boss-fight-scenario.ts && jiti src/lib/boss-fight/verify-persistence.ts && jiti scripts/verify-boss-fight-choice-order.ts"
   },
   "dependencies": {
     "@vinext/cloudflare": "1.0.0-beta.8",

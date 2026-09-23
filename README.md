@@ -8,6 +8,7 @@ Fast, source-grounded drills for technical and interview readiness. The current 
 - honest Recognize/Recall/Apply/Explain evidence and compact Practice next guidance;
 - responsive layouts for laptop, tablet, and phone;
 - local attempt history with cross-device sync through Cloudflare D1 in production.
+- one source-grounded, four-decision Boss Fight with branching consequences, a path-specific debrief, replay, and saved progress across devices.
 
 The [learning evidence contract](docs/phase3-learning-model.md) explains why self-ratings
 are not counted as objective correctness. Notion remains the source of truth for
@@ -31,13 +32,14 @@ pnpm typecheck
 pnpm lint
 pnpm verify:phase2
 pnpm verify:phase3
+pnpm verify:boss-fight
 pnpm build
 pnpm build:vinext
 ```
 
 ## Cloudflare and cross-device history
 
-The app is configured for Cloudflare Workers through vinext. Browser storage keeps the app useful during ordinary Next.js development; the same session API uses D1 when the Worker binding is available.
+The app is configured for Cloudflare Workers through vinext. Browser storage keeps the app useful during ordinary Next.js development; session and Boss Fight APIs use D1 when the Worker binding is available. Boss Fight progress is saved locally before a cloud request, and the interface says when only the device copy is available.
 
 1. Authenticate Wrangler:
 
@@ -57,7 +59,7 @@ The app is configured for Cloudflare Workers through vinext. Browser storage kee
    `wrangler.jsonc` because Cloudflare database names are immutable. The database ID
    and stored session history are unchanged by the Interdojo rename.
 
-4. Apply the migration and deploy:
+4. Apply the migrations and deploy:
 
    ```bash
    pnpm db:migrate:remote

@@ -22,12 +22,26 @@ import {
   summarizeSession,
 } from "@/lib/session";
 import { isCompletedSession } from "@/lib/session-validation";
+import { BossFight } from "./boss-fight";
+import { ruleCopyBossFight } from "@/lib/boss-fight/scenario";
+import {
+  advanceBossFightRun,
+  createBossFightRun,
+  loadBossFightRuns,
+  rememberBossFightRun,
+  saveBossFightRun,
+  type BossFightRun,
+  type BossFightStorage,
+} from "@/lib/boss-fight/persistence";
+import type { BossFightState } from "@/lib/boss-fight/types";
+import { compareBossFightRuns } from "@/lib/boss-fight/run";
+import { getBossFightView } from "@/lib/boss-fight/engine";
 
 const LOCAL_HISTORY_KEY = "interdojo:sessions:v1";
 const LEGACY_LOCAL_HISTORY_KEY = "interview-arcade:sessions:v1";
 const LAST_COMPANY_KEY = "interdojo:last-company:v1";
 
-type Screen = "home" | "session" | "results";
+type Screen = "home" | "session" | "results" | "boss-loading" | "boss";
 
 const modes: Array<{
   id: PhaseOneSessionMode;
@@ -141,19 +155,36 @@ function ModeIcon({ mode }: { mode: PhaseOneSessionMode }) {
 
 function HomeScreen({
   onStart,
+  onStartBossFight,
   onSelectCompany,
   history,
+  bossRuns,
   selectedCompanyId,
 }: {
   onStart: (mode: SessionMode, companyId?: CompanyId) => void;
+  onStartBossFight: () => void;
   onSelectCompany: (companyId: CompanyId) => void;
   history: CompletedSession[];
+  bossRuns: BossFightRun[];
   selectedCompanyId: CompanyId;
 }) {
-  const recentSessions = history.slice(0, 3).map((session) => ({
-    session,
-    summary: summarizeSession(session),
-  }));
+  const hasBossDraft = bossRuns.some((run) => run.completedAt === null);
+  const savedRunCount = history.length + bossRuns.filter((run) => run.completedAt !== null).length;
+  const recentRuns = [
+    ...history.map((session) => ({
+      kind: "session" as const,
+      id: session.id,
+      completedAt: session.completedAt,
+      session,
+      summary: summarizeSession(session),
+    })),
+    ...bossRuns.filter((run) => run.completedAt !== null).map((run) => ({
+      kind: "boss" as const,
+      id: run.id,
+      completedAt: run.completedAt!,
+      run,
+    })),
+  ].sort((left, right) => right.completedAt.localeCompare(left.completedAt)).slice(0, 3);
   const selectedCompany = getCompanyWorld(selectedCompanyId);
   const learning = deriveLearningState(history, allSkills);
   const baselineFocus = ["distributed-systems", "system-design", "node-runtime"];
@@ -192,7 +223,7 @@ function HomeScreen({
       <header className="home-header">
         <div className="home-brand"><span aria-hidden="true">IJ</span><strong>Interdojo</strong></div>
         <span className="home-header__context">Your practice space</span>
-        <span className="home-header__count">{history.length} {history.length === 1 ? "run" : "runs"} saved</span>
+        <span className="home-header__count">{savedRunCount} {savedRunCount === 1 ? "run" : "runs"} saved</span>
       </header>
 
       <section className="home-main">
@@ -223,6 +254,18 @@ function HomeScreen({
             <button onClick={() => onStart("daily")} type="button">
               Start sprint <Icon name="arrow" />
             </button>
+          </div>
+        </section>
+
+        <section className="boss-entry" aria-labelledby="boss-entry-title">
+          <div>
+            <p className="overline">New encounter · Engineering</p>
+            <h2 id="boss-entry-title">Boss Fight</h2>
+            <p>One design. Changing constraints. Your earlier choices shape what breaks next.</p>
+          </div>
+          <div className="boss-entry__action">
+            <span>One scenario · about 8–12 min</span>
+            <button onClick={onStartBossFight} type="button">{hasBossDraft ? "Resume the fight" : "Enter the fight"} <Icon name="arrow" /></button>
           </div>
         </section>
 
@@ -355,28 +398,35 @@ function HomeScreen({
         <div className="recent-runs">
           <div className="recent-runs__header">
             <span className="overline">Recent runs</span>
-            {history.length > 0 ? <span>Last {recentSessions.length}</span> : null}
+            {recentRuns.length > 0 ? <span>Last {recentRuns.length}</span> : null}
           </div>
-          {recentSessions.length > 0 ? (
+          {recentRuns.length > 0 ? (
             <ol>
-              {recentSessions.map(({ session, summary }) => (
-                <li key={session.id}>
+              {recentRuns.map((item) => item.kind === "boss" ? (
+                <li key={item.id}>
                   <div className="recent-runs__row">
-                    <strong>{getSessionLabel(session.mode, session.companyId)}</strong>
-                    <span>{summary.gradedTotal > 0
-                      ? `${summary.score}/${summary.gradedTotal} graded`
-                      : `${summary.selfCheckCount} self-checks`}</span>
+                    <strong>Boss Fight</strong>
+                    <span>{item.run.state.decisions.length} decisions · debrief</span>
                   </div>
-                  {summary.gradedTotal > 0 ? (
-                    <div className="recent-runs__track" aria-label={`${summary.score} of ${summary.gradedTotal} graded answers correct`} role="img">
-                      <span style={{ width: `${summary.percentage}%` }} />
+                </li>
+              ) : (
+                <li key={item.id}>
+                  <div className="recent-runs__row">
+                    <strong>{getSessionLabel(item.session.mode, item.session.companyId)}</strong>
+                    <span>{item.summary.gradedTotal > 0
+                      ? `${item.summary.score}/${item.summary.gradedTotal} graded`
+                      : `${item.summary.selfCheckCount} self-checks`}</span>
+                  </div>
+                  {item.summary.gradedTotal > 0 ? (
+                    <div className="recent-runs__track" aria-label={`${item.summary.score} of ${item.summary.gradedTotal} graded answers correct`} role="img">
+                      <span style={{ width: `${item.summary.percentage}%` }} />
                     </div>
                   ) : null}
                 </li>
               ))}
             </ol>
           ) : (
-            <p className="recent-runs__empty">Your first sprint will start your practice history.</p>
+            <p className="recent-runs__empty">Your first completed run will start your practice history.</p>
           )}
         </div>
       </aside>
@@ -995,6 +1045,13 @@ export function ArcadeApp() {
   const [sessionStartedAt, setSessionStartedAt] = useState("");
   const [completedSession, setCompletedSession] = useState<CompletedSession | null>(null);
   const [history, setHistory] = useState<CompletedSession[]>([]);
+  const [bossRuns, setBossRuns] = useState<BossFightRun[]>([]);
+  const [bossRun, setBossRun] = useState<BossFightRun | null>(null);
+  const [bossStorage, setBossStorage] = useState<BossFightStorage | "saving">("saving");
+  const [bossNotice, setBossNotice] = useState("");
+  const bossRunRef = useRef<BossFightRun | null>(null);
+  const bossSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const bossEntryTokenRef = useRef(0);
 
   useEffect(() => {
     const storedCompanyId = localStorage.getItem(LAST_COMPANY_KEY);
@@ -1021,6 +1078,10 @@ export function ArcadeApp() {
         setHistory(recent);
         localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify(recent));
       })
+      .catch(() => undefined);
+
+    void loadBossFightRuns()
+      .then(({ runs }) => { if (!bossRunRef.current) setBossRuns(runs); })
       .catch(() => undefined);
   }, []);
 
@@ -1073,6 +1134,88 @@ export function ArcadeApp() {
     setScreen("results");
   }
 
+  function rememberBossRun(run: BossFightRun) {
+    setBossRuns((current) => [run, ...current.filter((item) => item.id !== run.id)]
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+      .slice(0, 30));
+  }
+
+  function persistBossRun(run: BossFightRun) {
+    setBossStorage("saving");
+    bossSaveQueueRef.current = bossSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const result = await saveBossFightRun(run);
+        const active = bossRunRef.current;
+        if (result.conflict && active?.id === run.id) {
+          const relation = compareBossFightRuns(active, result.run);
+          if (relation === "advance" || relation === "diverged") {
+            bossRunRef.current = result.run;
+            setBossRun(result.run);
+            setBossNotice("This run changed on another device. Showing the saved version.");
+          }
+        }
+        rememberBossRun(result.run);
+        if (bossRunRef.current?.id === run.id) {
+          setBossStorage(result.storage);
+          if (result.storage === "local" && !result.conflict) {
+            setBossNotice("Saved on this device. It will sync when the server is available.");
+          } else if (!result.conflict) {
+            setBossNotice("");
+          }
+        }
+      });
+  }
+
+  async function enterBossFight() {
+    const token = ++bossEntryTokenRef.current;
+    setBossNotice("");
+    setScreen("boss-loading");
+    const { runs, storage } = await loadBossFightRuns();
+    if (token !== bossEntryTokenRef.current) return;
+    setBossRuns(runs);
+    setBossStorage(storage);
+    const draft = runs.find((run) => run.completedAt === null);
+    const selected = draft ?? createBossFightRun(ruleCopyBossFight);
+    if (!draft) rememberBossFightRun(selected);
+    bossRunRef.current = selected;
+    setBossRun(selected);
+    setScreen("boss");
+    if (!draft) {
+      rememberBossRun(selected);
+      persistBossRun(selected);
+    }
+  }
+
+  function updateBossFight(next: BossFightState) {
+    const active = bossRunRef.current;
+    const lastDecision = next.decisions.at(-1);
+    const currentStage = active && getBossFightView(ruleCopyBossFight, active.state);
+    if (!active || !lastDecision || !currentStage ||
+        next.decisions.length !== active.state.decisions.length + 1 ||
+        lastDecision.stageId !== currentStage.stageId) return;
+    const updated = advanceBossFightRun(ruleCopyBossFight, active, lastDecision.choiceId);
+    const locallySaved = rememberBossFightRun(updated);
+    bossRunRef.current = locallySaved.run;
+    setBossRun(locallySaved.run);
+    rememberBossRun(locallySaved.run);
+    if (locallySaved.conflict) {
+      setBossNotice("This run changed in another tab. Showing the saved version.");
+    } else {
+      persistBossRun(updated);
+    }
+  }
+
+  function replayBossFight() {
+    const next = createBossFightRun(ruleCopyBossFight);
+    rememberBossFightRun(next);
+    bossRunRef.current = next;
+    setBossRun(next);
+    setBossNotice("");
+    rememberBossRun(next);
+    persistBossRun(next);
+  }
+
   if (screen === "session") {
     return (
       <SessionScreen
@@ -1096,11 +1239,33 @@ export function ArcadeApp() {
     );
   }
 
+  if (screen === "boss-loading") {
+    return <main className="boss-loading" role="status">
+      <p>Loading your Boss Fight…</p>
+      <button type="button" onClick={() => { bossEntryTokenRef.current += 1; setScreen("home"); }}>Back to practice</button>
+    </main>;
+  }
+
+  if (screen === "boss" && bossRun) {
+    return <BossFight
+      scenario={ruleCopyBossFight}
+      state={bossRun.state}
+      runId={bossRun.id}
+      saveStatus={bossStorage}
+      notice={bossNotice}
+      onStateChange={updateBossFight}
+      onReplay={replayBossFight}
+      onExit={() => setScreen("home")}
+    />;
+  }
+
   return (
     <HomeScreen
       history={history}
+      bossRuns={bossRuns}
       onSelectCompany={selectCompany}
       onStart={start}
+      onStartBossFight={() => { void enterBossFight(); }}
       selectedCompanyId={selectedCompanyId}
     />
   );
